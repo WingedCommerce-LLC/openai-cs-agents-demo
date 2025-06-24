@@ -5,6 +5,10 @@ from typing import Optional, List, Dict, Any
 from uuid import uuid4
 import time
 import logging
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 from main import (
     triage_agent,
@@ -181,7 +185,18 @@ async def chat_endpoint(req: ChatRequest):
             )
     else:
         conversation_id = req.conversation_id  # type: ignore
-        state = conversation_store.get(conversation_id)
+        retrieved_state = conversation_store.get(conversation_id)
+        if retrieved_state is None:
+            # Handle case where conversation doesn't exist - create new state
+            ctx = create_initial_context()
+            current_agent_name = triage_agent.name
+            state: Dict[str, Any] = {
+                "input_items": [],
+                "context": ctx,
+                "current_agent": current_agent_name,
+            }
+        else:
+            state = retrieved_state
 
     current_agent = _get_agent_by_name(state["current_agent"])
     state["input_items"].append({"content": req.message, "role": "user"})
