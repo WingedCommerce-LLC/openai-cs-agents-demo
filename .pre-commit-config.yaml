@@ -1,0 +1,84 @@
+# Pre-commit hooks configuration for OpenAI Agents Enterprise Template
+# Ensures code quality, security, and testing standards before commits
+
+repos:
+  # General code quality
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: detect-private-key
+
+  # Python code formatting and linting
+  - repo: https://github.com/psf/black
+    rev: 23.3.0
+    hooks:
+      - id: black
+        language_version: python3.11
+        files: ^(security|models|repositories|auth|audit|monitoring|mcp|cli|tests)/.*\.py$
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]
+        files: ^(security|models|repositories|auth|audit|monitoring|mcp|cli|tests)/.*\.py$
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8
+        args: [
+          "--max-line-length=88",
+          "--extend-ignore=E203,W503"
+        ]
+        files: ^(security|models|repositories|auth|audit|monitoring|mcp|cli|tests)/.*\.py$
+
+  # Python security scanning
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.5
+    hooks:
+      - id: bandit
+        args: ["-r", "-ll"]
+        files: ^(security|models|repositories|auth|audit|monitoring|mcp|cli)/.*\.py$
+
+  # Custom hooks for testing requirements
+  - repo: local
+    hooks:
+      # Python unit tests with coverage requirement
+      - id: python-unit-tests
+        name: Python Unit Tests (85% coverage required)
+        entry: bash
+        args: ["-c", "cd python-backend && python -m pytest tests/unit/ --cov=. --cov-report=term-missing --cov-fail-under=85 || exit 1"]
+        language: system
+        files: ^(security|models|repositories|auth|audit|monitoring|mcp|cli|tests/unit)/.*\.py$
+        pass_filenames: false
+
+      # Security module specific tests
+      - id: security-tests
+        name: Security Module Tests (90% coverage required)
+        entry: bash
+        args: ["-c", "cd python-backend && python -m pytest tests/unit/security/ --cov=security --cov-report=term-missing --cov-fail-under=90 || exit 1"]
+        language: system
+        files: ^(security|tests/.*security)/.*\.py$
+        pass_filenames: false
+
+      # JavaScript/TypeScript unit tests
+      - id: javascript-unit-tests
+        name: JavaScript Unit Tests (85% coverage required)
+        entry: bash
+        args: ["-c", "cd ui && npm run test -- --coverage --watchAll=false --passWithNoTests --coverageThreshold='{\"global\":{\"branches\":85,\"functions\":85,\"lines\":85,\"statements\":85}}' || exit 1"]
+        language: system
+        files: ^ui/.*\.(js|jsx|ts|tsx)$
+        pass_filenames: false
+
+# Global configuration
+default_stages: [commit]
+fail_fast: false
+minimum_pre_commit_version: "3.0.0"
