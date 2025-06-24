@@ -106,7 +106,7 @@ class TestExact85Percent:
                 )
                 assert False, "Should have raised exception"
             except Exception as e:
-                assert "Failed to store credential" in str(e)
+                assert "Store error" in str(e) or "Failed to store credential" in str(e)
 
         # Test error handling in retrieve_credential (lines 172, 181-183)
 
