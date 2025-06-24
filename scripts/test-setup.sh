@@ -101,14 +101,14 @@ fi
 if [ -d "ui" ] && [ -f "ui/package.json" ]; then
     log_info "Testing Node.js setup in ui directory..."
     cd ui
-    
+
     # Check if node_modules exists
     if [ -d "node_modules" ]; then
         log_success "Node.js dependencies already installed"
     else
         log_info "Node.js dependencies not installed - would be installed by setup script"
     fi
-    
+
     cd ..
 else
     log_warning "UI directory or package.json not found"
@@ -117,7 +117,7 @@ fi
 # Setup Python virtual environment and dependencies
 setup_python_environment() {
     log_info "Setting up Python virtual environment..."
-    
+
     # Check if .venv exists
     if [ ! -d ".venv" ]; then
         log_info "Creating Python virtual environment..."
@@ -133,11 +133,11 @@ setup_python_environment() {
     else
         log_success "Virtual environment already exists"
     fi
-    
+
     # Activate virtual environment
     log_info "Activating virtual environment..."
     source .venv/bin/activate
-    
+
     # Install dependencies
     if [ -f "pyproject.toml" ]; then
         log_info "Installing Python dependencies..."
@@ -154,7 +154,7 @@ setup_python_environment() {
     else
         log_warning "pyproject.toml not found - skipping dependency installation"
     fi
-    
+
     # Install pre-commit hooks if available
     if command -v pre-commit >/dev/null 2>&1; then
         log_info "Installing pre-commit hooks..."
@@ -170,7 +170,7 @@ setup_node_environment() {
     if [ -d "ui" ] && [ -f "ui/package.json" ]; then
         log_info "Setting up Node.js environment..."
         cd ui
-        
+
         # Install dependencies if not already installed
         if [ ! -d "node_modules" ]; then
             log_info "Installing Node.js dependencies..."
@@ -179,7 +179,7 @@ setup_node_environment() {
         else
             log_success "Node.js dependencies already installed"
         fi
-        
+
         cd ..
     else
         log_warning "UI directory or package.json not found - skipping Node.js setup"
@@ -203,22 +203,22 @@ setup_node_environment
 # Run a simple test to verify setup
 test_installation() {
     log_info "Testing installation..."
-    
+
     # Test Python environment
     if [ -f ".venv/bin/activate" ]; then
         source .venv/bin/activate
-        
+
         # Test if we can import our modules
         if python -c "from security.env_sanitizer import EnvironmentSanitizer; print('✓ Security module importable')" 2>/dev/null; then
             log_success "Python modules are importable"
         else
             log_warning "Some Python modules may not be importable yet"
         fi
-        
+
         # Test if pytest is available
         if command -v pytest >/dev/null 2>&1; then
             log_success "pytest is available"
-            
+
             # Run a simple test if tests exist
             if [ -d "tests" ]; then
                 log_info "Running a quick test to verify setup..."

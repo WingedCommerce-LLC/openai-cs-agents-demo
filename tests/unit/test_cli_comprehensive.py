@@ -6,9 +6,8 @@ and integration to push coverage above 85%.
 """
 
 import os
-import sys
 from io import StringIO
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from click.testing import CliRunner
@@ -70,7 +69,7 @@ class TestCLIComprehensive:
                 result = cli_runner.invoke(agent_cli.cli, [flag, "--help"])
                 # Should either work or give a reasonable error
                 assert result.exit_code in [0, 2]
-            except:
+            except Exception:
                 # Flag might not exist, continue testing
                 continue
 
@@ -88,7 +87,7 @@ class TestCLIComprehensive:
                 )
                 # Should handle config option gracefully
                 assert result.exit_code in [0, 1, 2]
-            except:
+            except Exception:
                 continue
 
     def test_cli_output_format_options(self, cli_runner):
@@ -108,7 +107,7 @@ class TestCLIComprehensive:
             try:
                 result = cli_runner.invoke(agent_cli.cli, option + ["--help"])
                 assert result.exit_code in [0, 1, 2]
-            except:
+            except Exception:
                 continue
 
     def test_cli_environment_variable_handling(self, cli_runner):
@@ -181,18 +180,16 @@ class TestCLIComprehensive:
                 result = cli_runner.invoke(agent_cli.cli, condition)
                 # Should handle errors gracefully
                 assert result.exit_code in [0, 1, 2]
-            except:
+            except Exception:
                 # Some conditions might not be applicable
                 continue
 
     def test_cli_signal_handling(self, cli_runner):
         """Test CLI signal handling."""
-        import signal
-
         import cli.agent_cli as agent_cli
 
         # Test that CLI can handle interruption
-        with patch("signal.signal") as mock_signal:
+        with patch("signal.signal"):
             result = cli_runner.invoke(agent_cli.cli, ["--help"])
             assert result.exit_code == 0
 
@@ -237,7 +234,7 @@ class TestCLIComprehensive:
             if hasattr(cli_cmd, "plugins") or hasattr(cli_cmd, "load_plugins"):
                 result = cli_runner.invoke(agent_cli.cli, ["--help"])
                 assert result.exit_code == 0
-        except:
+        except Exception:
             # Plugin system might not be implemented
             pass
 
@@ -255,7 +252,7 @@ class TestCLIComprehensive:
             try:
                 result = cli_runner.invoke(agent_cli.cli, cmd)
                 assert result.exit_code in [0, 1, 2]
-            except:
+            except Exception:
                 # Completion might not be implemented
                 continue
 
@@ -271,7 +268,7 @@ class TestCLIComprehensive:
                 # Use input simulation for interactive mode
                 result = cli_runner.invoke(agent_cli.cli, flag, input="\n")
                 assert result.exit_code in [0, 1, 2]
-            except:
+            except Exception:
                 continue
 
     def test_cli_dry_run_mode(self, cli_runner):
@@ -285,7 +282,7 @@ class TestCLIComprehensive:
             try:
                 result = cli_runner.invoke(agent_cli.cli, flag + ["--help"])
                 assert result.exit_code in [0, 1, 2]
-            except:
+            except Exception:
                 continue
 
     def test_cli_performance_options(self, cli_runner):
@@ -304,7 +301,7 @@ class TestCLIComprehensive:
             try:
                 result = cli_runner.invoke(agent_cli.cli, option + ["--help"])
                 assert result.exit_code in [0, 1, 2]
-            except:
+            except Exception:
                 continue
 
     def test_cli_security_options(self, cli_runner):
@@ -324,7 +321,7 @@ class TestCLIComprehensive:
             try:
                 result = cli_runner.invoke(agent_cli.cli, option + ["--help"])
                 assert result.exit_code in [0, 1, 2]
-            except:
+            except Exception:
                 continue
 
     def test_cli_output_redirection(self, cli_runner):
@@ -332,7 +329,7 @@ class TestCLIComprehensive:
         import cli.agent_cli as agent_cli
 
         # Test output redirection
-        with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
+        with patch("sys.stdout", new_callable=StringIO):
             result = cli_runner.invoke(agent_cli.cli, ["--help"])
             assert result.exit_code == 0
 
@@ -356,7 +353,7 @@ class TestCLIComprehensive:
             try:
                 result = cli_runner.invoke(agent_cli.cli, test_input + ["--help"])
                 assert result.exit_code in [0, 1, 2]
-            except:
+            except Exception:
                 continue
 
     def test_cli_memory_usage(self, cli_runner):
@@ -391,5 +388,5 @@ class TestCLIComprehensive:
             try:
                 result = cli_runner.invoke(agent_cli.cli, case)
                 assert result.exit_code in [0, 1, 2]
-            except:
+            except Exception:
                 continue

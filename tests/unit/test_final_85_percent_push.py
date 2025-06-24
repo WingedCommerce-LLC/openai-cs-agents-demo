@@ -7,10 +7,8 @@ statements to achieve the 85% coverage requirement.
 
 import asyncio
 import os
-import sys
 import tempfile
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -20,7 +18,7 @@ class TestFinal85PercentPush:
 
     def test_models_base_final_line(self):
         """Test the final uncovered line in models/base.py:95."""
-        from models.base import Base, SoftDeleteMixin, TimestampMixin
+        from models.base import Base
 
         # Test the specific uncovered line in models/base.py:95
         class TestModel(Base):
@@ -29,7 +27,7 @@ class TestFinal85PercentPush:
             def __init__(self):
                 super().__init__()
                 # This should trigger line 95 in base.py
-                self.id = None
+                self.id = None  # type: ignore
 
         model = TestModel()
 
@@ -108,10 +106,8 @@ class TestFinal85PercentPush:
         """Test uncovered lines in security/credential_manager.py."""
         from security.credential_manager import (
             CredentialManager,
-            CredentialMetadata,
             CredentialType,
             InMemoryCredentialStore,
-            SecureCredential,
             SecureCredentialInjector,
         )
 
@@ -147,10 +143,10 @@ class TestFinal85PercentPush:
         try:
             # Test with None values
             await manager.store_credential(
-                name=None,
-                value=None,
+                name=None,  # type: ignore
+                value=None,  # type: ignore
                 credential_type=CredentialType.API_KEY,
-                tenant_id=None,
+                tenant_id=None,  # type: ignore
             )
         except Exception:
             pass
@@ -162,7 +158,7 @@ class TestFinal85PercentPush:
             pass
 
         try:
-            await manager.retrieve_credential(None, None)
+            await manager.retrieve_credential(None, None)  # type: ignore
         except Exception:
             pass
 
@@ -174,12 +170,12 @@ class TestFinal85PercentPush:
 
         # Test list credentials edge cases
         try:
-            await manager.list_credentials("")
+            await manager.list_credentials("")  # type: ignore
         except Exception:
             pass
 
         try:
-            await manager.list_credentials(None)
+            await manager.list_credentials(None)  # type: ignore
         except Exception:
             pass
 
@@ -200,7 +196,7 @@ class TestFinal85PercentPush:
 
         try:
             # Test with None template
-            await injector.inject_credentials(None, "tenant", {})
+            await injector.inject_credentials(None, "tenant", {})  # type: ignore
         except Exception:
             pass
 
@@ -211,7 +207,7 @@ class TestFinal85PercentPush:
             pass
 
         try:
-            injector.create_secure_env_vars(None, "tenant")
+            injector.create_secure_env_vars(None, "tenant")  # type: ignore
         except Exception:
             pass
 
@@ -224,6 +220,7 @@ class TestFinal85PercentPush:
             # These are likely initialization or method implementation lines
             # Test with various constructor patterns
             mock_manager = MagicMock()
+            lifecycle = None
 
             try:
                 # Test different constructor signatures
@@ -239,7 +236,7 @@ class TestFinal85PercentPush:
                 pass
 
             # Test method calls if the object was created successfully
-            if "lifecycle" in locals():
+            if lifecycle is not None:
                 # Test various methods that might exist
                 methods_to_test = [
                     "check_expiration",
@@ -263,12 +260,12 @@ class TestFinal85PercentPush:
                         except TypeError:
                             try:
                                 method("test_id", "test_tenant")
-                            except:
+                            except Exception:
                                 try:
                                     method("test_id")
-                                except:
+                                except Exception:
                                     pass
-                        except:
+                        except Exception:
                             pass
 
         except ImportError:

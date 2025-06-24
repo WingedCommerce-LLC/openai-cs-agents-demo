@@ -21,21 +21,21 @@ export default defineConfig({
     setupNodeEvents(on, config) {
       // Code coverage setup
       require('@cypress/code-coverage/task')(on, config)
-      
+
       // Custom tasks
       on('task', {
         log(message) {
           console.log(message)
           return null
         },
-        
+
         // Database seeding task
         seedDatabase() {
           // Implementation would connect to test database and seed data
           console.log('Seeding test database...')
           return null
         },
-        
+
         // Clean database task
         cleanDatabase() {
           // Implementation would clean test database
@@ -43,11 +43,11 @@ export default defineConfig({
           return null
         }
       })
-      
+
       return config
     }
   },
-  
+
   component: {
     devServer: {
       framework: 'next',
@@ -57,7 +57,7 @@ export default defineConfig({
     specPattern: 'cypress/component/**/*.cy.{js,jsx,ts,tsx}',
     indexHtmlFile: 'cypress/support/component-index.html'
   },
-  
+
   // Coverage settings
   env: {
     codeCoverage: {

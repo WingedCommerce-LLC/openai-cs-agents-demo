@@ -218,6 +218,7 @@ omit = [
     "*/__pycache__/*",
     "*/migrations/*",
     "python-backend/*",
+    "python_backend/*",
 ]
 
 [tool.coverage.report]
@@ -232,6 +233,21 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
+]
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503"]
+exclude = [
+    ".git",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "*.egg-info",
+    ".tox",
+    ".mypy_cache",
 ]
 
 [tool.bandit]

@@ -25,93 +25,69 @@ spec:
         runAsUser: 1001
         fsGroup: 1001
       containers:
-      - name: backend
-        image: agents-backend:latest
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 8000
-          name: http
-        env:
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: db-secret
-              key: url
-        - name: REDIS_URL
-          valueFrom:
-            secretKeyRef:
-              name: redis-secret
-              key: url
-        - name: OPENAI_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: openai-secret
-              key: api-key
-        - name: CREDENTIAL_ENCRYPTION_KEY
-          valueFrom:
-            secretKeyRef:
-              name: encryption-secret
-              key: key
-        - name: ENVIRONMENT
-          value: "production"
-        - name: DEBUG
-          value: "false"
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
-        livenessProbe:
-          httpGet:
-            path: /health/live
-            port: 8000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /health/ready
-            port: 8000
-          initialDelaySeconds: 5
-          periodSeconds: 5
-        securityContext:
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-          capabilities:
-            drop:
-            - ALL
-        volumeMounts:
-        - name: tmp
-          mountPath: /tmp
-        - name: cache
-          mountPath: /app/.cache
+        - name: backend
+          image: agents-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: url
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: redis-secret
+                  key: url
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-secret
+                  key: api-key
+            - name: CREDENTIAL_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: encryption-secret
+                  key: key
+            - name: ENVIRONMENT
+              value: "production"
+            - name: DEBUG
+              value: "false"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /app/.cache
       volumes:
-      - name: tmp
-        emptyDir: {}
-      - name: cache
-        emptyDir: {}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: agents-backend-service
-  namespace: openai-agents
-  labels:
-    app: agents-backend
-spec:
-  selector:
-    app: agents-backend
-  ports:
-  - port: 80
-    targetPort: 8000
-    name: http
-  type: ClusterIP
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: agents-backend-sa
-  namespace: openai-agents
-  labels:
-    app: agents-backend
+        - name: tmp
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}

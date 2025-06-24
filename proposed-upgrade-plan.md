@@ -64,26 +64,26 @@ class CredentialStore(ABC):
     @abstractmethod
     async def store_credential(self, credential: SecureCredential) -> bool:
         pass
-    
+
     @abstractmethod
     async def retrieve_credential(self, credential_id: str, tenant_id: str) -> Optional[str]:
         pass
-    
+
     @abstractmethod
     async def delete_credential(self, credential_id: str, tenant_id: str) -> bool:
         pass
-    
+
     @abstractmethod
     async def list_credentials(self, tenant_id: str) -> List[CredentialMetadata]:
         pass
 
 class VaultCredentialStore(CredentialStore):
     """HashiCorp Vault integration for production environments."""
-    
+
     def __init__(self, vault_url: str, vault_token: str):
         import hvac
         self.client = hvac.Client(url=vault_url, token=vault_token)
-    
+
     async def store_credential(self, credential: SecureCredential) -> bool:
         try:
             path = f"secret/tenants/{credential.metadata.tenant_id}/credentials/{credential.metadata.id}"
@@ -98,7 +98,7 @@ class VaultCredentialStore(CredentialStore):
         except Exception as e:
             logger.error(f"Failed to store credential in Vault: {e}")
             return False
-    
+
     async def retrieve_credential(self, credential_id: str, tenant_id: str) -> Optional[str]:
         try:
             path = f"secret/tenants/{tenant_id}/credentials/{credential_id}"
@@ -110,7 +110,7 @@ class VaultCredentialStore(CredentialStore):
 
 class KubernetesSecretStore(CredentialStore):
     """Kubernetes Secrets integration for K8s environments."""
-    
+
     def __init__(self):
         from kubernetes import client, config
         try:
@@ -118,7 +118,7 @@ class KubernetesSecretStore(CredentialStore):
         except:
             config.load_kube_config()
         self.v1 = client.CoreV1Api()
-    
+
     async def store_credential(self, credential: SecureCredential) -> bool:
         try:
             secret_name = f"cred-{credential.metadata.tenant_id}-{credential.metadata.id}"
@@ -148,7 +148,7 @@ class CredentialManager:
         self.store = store
         self.encryption_key = encryption_key or self._generate_key()
         self.fernet = Fernet(self.encryption_key.encode() if isinstance(self.encryption_key, str) else self.encryption_key)
-    
+
     def _generate_key(self) -> bytes:
         """Generate encryption key from environment or create new one."""
         key_material = os.environ.get("CREDENTIAL_ENCRYPTION_KEY")
@@ -163,22 +163,22 @@ class CredentialManager:
             return key
         else:
             return Fernet.generate_key()
-    
-    async def store_credential(self, 
-                             name: str, 
-                             value: str, 
+
+    async def store_credential(self,
+                             name: str,
+                             value: str,
                              credential_type: CredentialType,
                              tenant_id: str,
                              expires_at: Optional[str] = None,
                              tags: Optional[Dict[str, str]] = None) -> str:
         """Store a credential securely with encryption."""
-        
+
         # Generate unique ID
         credential_id = f"{tenant_id}_{name}_{int(time.time())}"
-        
+
         # Encrypt the credential value
         encrypted_value = self.fernet.encrypt(value.encode()).decode()
-        
+
         # Create metadata
         metadata = CredentialMetadata(
             id=credential_id,
@@ -189,21 +189,21 @@ class CredentialManager:
             expires_at=expires_at,
             tags=tags or {}
         )
-        
+
         # Create secure credential
         secure_cred = SecureCredential(
             metadata=metadata,
             encrypted_value=encrypted_value,
             encryption_key_id="default"  # In production, use key rotation
         )
-        
+
         # Store in backend
         success = await self.store.store_credential(secure_cred)
         if success:
             return credential_id
         else:
             raise Exception("Failed to store credential")
-    
+
     async def retrieve_credential(self, credential_id: str, tenant_id: str) -> Optional[str]:
         """Retrieve and decrypt a credential."""
         encrypted_value = await self.store.retrieve_credential(credential_id, tenant_id)
@@ -215,19 +215,19 @@ class CredentialManager:
                 logger.error(f"Failed to decrypt credential: {e}")
                 return None
         return None
-    
+
     async def rotate_credential(self, credential_id: str, tenant_id: str, new_value: str) -> bool:
         """Rotate a credential with the new value."""
         # Retrieve existing metadata
         credentials = await self.store.list_credentials(tenant_id)
         existing = next((c for c in credentials if c.id == credential_id), None)
-        
+
         if not existing:
             return False
-        
+
         # Delete old credential
         await self.store.delete_credential(credential_id, tenant_id)
-        
+
         # Store new credential with updated metadata
         new_id = await self.store_credential(
             name=existing.name,
@@ -237,20 +237,20 @@ class CredentialManager:
             expires_at=existing.expires_at,
             tags=existing.tags
         )
-        
+
         return new_id is not None
 
 # Credential injection for agents and MCP servers
 class SecureCredentialInjector:
     def __init__(self, credential_manager: CredentialManager):
         self.credential_manager = credential_manager
-    
-    async def inject_credentials(self, 
-                               template: str, 
+
+    async def inject_credentials(self,
+                               template: str,
                                tenant_id: str,
                                credential_mappings: Dict[str, str]) -> str:
         """Inject credentials into configuration templates securely."""
-        
+
         result = template
         for placeholder, credential_id in credential_mappings.items():
             credential_value = await self.credential_manager.retrieve_credential(
@@ -260,14 +260,14 @@ class SecureCredentialInjector:
                 result = result.replace(f"${{{placeholder}}}", credential_value)
             else:
                 logger.warning(f"Credential {credential_id} not found for tenant {tenant_id}")
-        
+
         return result
-    
-    def create_secure_env_vars(self, 
+
+    def create_secure_env_vars(self,
                              credential_mappings: Dict[str, str],
                              tenant_id: str) -> Dict[str, str]:
         """Create environment variables with credential references for containers."""
-        
+
         env_vars = {}
         for env_name, credential_id in credential_mappings.items():
             # Use Kubernetes secret references instead of plain values
@@ -279,7 +279,7 @@ class SecureCredentialInjector:
                     }
                 }
             }
-        
+
         return env_vars
 ```
 
@@ -301,34 +301,34 @@ class CredentialLifecycleManager:
     def __init__(self, credential_manager: CredentialManager):
         self.credential_manager = credential_manager
         self.celery_app = Celery('credential_rotation')
-    
+
     async def check_expiring_credentials(self) -> List[CredentialMetadata]:
         """Check for credentials that are expiring soon."""
         expiring_credentials = []
-        
+
         # Get all tenants (implement based on your tenant management)
         tenants = await self.get_all_tenants()
-        
+
         for tenant_id in tenants:
             credentials = await self.credential_manager.store.list_credentials(tenant_id)
-            
+
             for cred in credentials:
                 if cred.expires_at:
                     expiry_date = datetime.fromisoformat(cred.expires_at)
                     days_until_expiry = (expiry_date - datetime.utcnow()).days
-                    
+
                     if days_until_expiry <= 7:  # Warning threshold
                         expiring_credentials.append(cred)
-        
+
         return expiring_credentials
-    
+
     @celery_app.task
     def rotate_credential_task(self, credential_id: str, tenant_id: str):
         """Celery task for automatic credential rotation."""
         # Implement credential-specific rotation logic
         # This would integrate with external systems to generate new credentials
         pass
-    
+
     async def schedule_rotation(self, credential_id: str, tenant_id: str, rotation_date: datetime):
         """Schedule automatic credential rotation."""
         self.rotate_credential_task.apply_async(
@@ -340,8 +340,8 @@ class CredentialLifecycleManager:
 class CredentialAuditLogger:
     def __init__(self, audit_logger):
         self.audit_logger = audit_logger
-    
-    async def log_credential_access(self, 
+
+    async def log_credential_access(self,
                                   credential_id: str,
                                   tenant_id: str,
                                   user_id: str,
@@ -349,7 +349,7 @@ class CredentialAuditLogger:
                                   success: bool,
                                   ip_address: str = None):
         """Log all credential access attempts."""
-        
+
         await self.audit_logger.log_event(AuditEvent(
             event_type="credential_access",
             resource_type="credential",
@@ -377,7 +377,7 @@ from typing import Dict, List, Set
 
 class EnvironmentSanitizer:
     """Ensures no credentials leak through environment variables, logs, or error messages."""
-    
+
     SENSITIVE_PATTERNS = [
         r'api[_-]?key',
         r'secret[_-]?key',
@@ -393,35 +393,35 @@ class EnvironmentSanitizer:
         r'database[_-]?url',
         r'connection[_-]?string'
     ]
-    
+
     def __init__(self):
         self.sensitive_keys = self._compile_patterns()
-    
+
     def _compile_patterns(self) -> List[re.Pattern]:
         return [re.compile(pattern, re.IGNORECASE) for pattern in self.SENSITIVE_PATTERNS]
-    
+
     def sanitize_environment(self, env_vars: Dict[str, str]) -> Dict[str, str]:
         """Remove or mask sensitive environment variables."""
         sanitized = {}
-        
+
         for key, value in env_vars.items():
             if self._is_sensitive_key(key):
                 sanitized[key] = self._mask_value(value)
             else:
                 sanitized[key] = value
-        
+
         return sanitized
-    
+
     def _is_sensitive_key(self, key: str) -> bool:
         """Check if environment variable key contains sensitive information."""
         return any(pattern.search(key) for pattern in self.sensitive_keys)
-    
+
     def _mask_value(self, value: str) -> str:
         """Mask sensitive values for logging/display."""
         if len(value) <= 8:
             return "*" * len(value)
         return value[:4] + "*" * (len(value) - 8) + value[-4:]
-    
+
     def sanitize_logs(self, log_message: str) -> str:
         """Remove potential credentials from log messages."""
         # Pattern to match potential API keys, tokens, etc.
@@ -433,34 +433,34 @@ class EnvironmentSanitizer:
             r'mysql://[^:]+:([^@]+)@',
             r'redis://[^:]*:([^@]+)@'
         ]
-        
+
         sanitized = log_message
         for pattern in patterns:
             sanitized = re.sub(pattern, lambda m: m.group(0).replace(m.group(1), "*" * 8), sanitized)
-        
+
         return sanitized
 
 # Secure configuration loader
 class SecureConfigLoader:
     """Load configuration without exposing credentials in memory or logs."""
-    
+
     def __init__(self, credential_manager: CredentialManager):
         self.credential_manager = credential_manager
         self.sanitizer = EnvironmentSanitizer()
-    
+
     async def load_secure_config(self, tenant_id: str, config_template: Dict) -> Dict:
         """Load configuration with credentials injected securely."""
-        
+
         config = config_template.copy()
-        
+
         # Process credential references
         await self._process_credential_refs(config, tenant_id)
-        
+
         return config
-    
+
     async def _process_credential_refs(self, config: Dict, tenant_id: str):
         """Recursively process credential references in configuration."""
-        
+
         for key, value in config.items():
             if isinstance(value, dict):
                 await self._process_credential_refs(value, tenant_id)
@@ -486,23 +486,23 @@ security:
   credential_encryption: true
   credential_rotation_days: 90
   credential_audit_logging: true
-  
+
   # API Security
   require_authentication: true
   require_authorization: true
   rate_limiting_enabled: true
   cors_strict_mode: true
-  
+
   # Data Protection
   encrypt_at_rest: true
   encrypt_in_transit: true
   data_classification_required: true
-  
+
   # Audit & Compliance
   audit_all_access: true
   log_retention_days: 365
   compliance_mode: "SOC2"
-  
+
   # Container Security
   run_as_non_root: true
   read_only_filesystem: true
@@ -514,7 +514,7 @@ development:
   credential_rotation_days: 30
   log_level: "DEBUG"
   cors_origins: ["http://localhost:3000"]
-  
+
 production:
   # Production hardening
   debug_mode: false
@@ -727,7 +727,7 @@ class TenantMixin:
 # models/conversation.py
 class Conversation(Base, TimestampMixin, TenantMixin):
     __tablename__ = "conversations"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     current_agent = Column(String(100), nullable=False)
@@ -737,7 +737,7 @@ class Conversation(Base, TimestampMixin, TenantMixin):
 
 class Message(Base, TimestampMixin, TenantMixin):
     __tablename__ = "messages"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     conversation_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     role = Column(String(20), nullable=False)  # user, assistant, system
@@ -747,7 +747,7 @@ class Message(Base, TimestampMixin, TenantMixin):
 
 class AgentEvent(Base, TimestampMixin, TenantMixin):
     __tablename__ = "agent_events"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     conversation_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     event_type = Column(String(50), nullable=False)
@@ -766,7 +766,7 @@ class ConversationRepository:
     def __init__(self, db: Session, tenant_id: str):
         self.db = db
         self.tenant_id = tenant_id
-    
+
     async def create_conversation(self, user_id: str, initial_context: dict) -> Conversation:
         conversation = Conversation(
             user_id=user_id,
@@ -778,14 +778,14 @@ class ConversationRepository:
         self.db.commit()
         self.db.refresh(conversation)
         return conversation
-    
+
     async def get_conversation(self, conversation_id: str) -> Optional[Conversation]:
         return self.db.query(Conversation).filter(
             Conversation.id == conversation_id,
             Conversation.tenant_id == self.tenant_id
         ).first()
-    
-    async def add_message(self, conversation_id: str, role: str, content: str, 
+
+    async def add_message(self, conversation_id: str, role: str, content: str,
                          agent_name: Optional[str] = None) -> Message:
         message = Message(
             conversation_id=conversation_id,
@@ -838,16 +838,16 @@ class SecuritySettings(BaseSettings):
 class Settings(BaseSettings):
     environment: Environment = Field(Environment.DEVELOPMENT, env="ENVIRONMENT")
     debug: bool = Field(False, env="DEBUG")
-    
+
     database: DatabaseSettings = DatabaseSettings()
     redis: RedisSettings = RedisSettings()
     openai: OpenAISettings = OpenAISettings()
     security: SecuritySettings = SecuritySettings()
-    
+
     # MCP Settings
     mcp_server_registry_url: str = Field("", env="MCP_SERVER_REGISTRY_URL")
     mcp_auto_deploy: bool = Field(True, env="MCP_AUTO_DEPLOY")
-    
+
     class Config:
         env_file = ".env"
         case_sensitive = False
@@ -871,11 +871,11 @@ class TenantContext:
     def __init__(self, tenant_id: str):
         self.tenant_id = tenant_id
         self.token = None
-    
+
     def __enter__(self):
         self.token = current_tenant.set(self.tenant_id)
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         current_tenant.reset(self.token)
 
@@ -896,28 +896,28 @@ class TenantMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Extract tenant from header, subdomain, or JWT token
         tenant_id = self.extract_tenant_id(request)
-        
+
         if not tenant_id:
             raise HTTPException(status_code=400, detail="Tenant ID required")
-        
+
         with TenantContext(tenant_id):
             response = await call_next(request)
-        
+
         return response
-    
+
     def extract_tenant_id(self, request: Request) -> Optional[str]:
         # Try header first
         tenant_id = request.headers.get("X-Tenant-ID")
         if tenant_id:
             return tenant_id
-        
+
         # Try subdomain
         host = request.headers.get("host", "")
         if "." in host:
             subdomain = host.split(".")[0]
             if subdomain != "www" and subdomain != "api":
                 return subdomain
-        
+
         # Try JWT token (implement based on your auth system)
         return None
 ```
@@ -953,17 +953,17 @@ class OpenAPIAnalyzer:
     def __init__(self, spec_content: str):
         self.spec = self.parse_spec(spec_content)
         self.endpoints = self.analyze_endpoints()
-    
+
     def parse_spec(self, content: str) -> Dict:
         try:
             return yaml.safe_load(content)
         except yaml.YAMLError:
             return json.loads(content)
-    
+
     def analyze_endpoints(self) -> List[EndpointInfo]:
         endpoints = []
         paths = self.spec.get("paths", {})
-        
+
         for path, path_item in paths.items():
             for method, operation in path_item.items():
                 if method.upper() in ["GET", "POST", "PUT", "DELETE", "PATCH"]:
@@ -980,32 +980,32 @@ class OpenAPIAnalyzer:
                         complexity_score=self.calculate_complexity(operation)
                     )
                     endpoints.append(endpoint)
-        
+
         return endpoints
-    
+
     def calculate_complexity(self, operation: Dict) -> int:
         score = 1  # Base score
-        
+
         # Add complexity for parameters
         params = operation.get("parameters", [])
         score += len(params) * 0.5
-        
+
         # Add complexity for request body
         if operation.get("requestBody"):
             score += 2
-        
+
         # Add complexity for multiple response types
         responses = operation.get("responses", {})
         score += len(responses) * 0.3
-        
+
         return int(score)
-    
+
     def get_endpoints_by_tag(self, tag: str) -> List[EndpointInfo]:
         return [ep for ep in self.endpoints if tag in ep.tags]
-    
+
     def get_high_value_endpoints(self, max_complexity: int = 5) -> List[EndpointInfo]:
         return [ep for ep in self.endpoints if ep.complexity_score <= max_complexity]
-    
+
     def generate_functionality_groups(self) -> Dict[str, List[EndpointInfo]]:
         groups = {}
         for endpoint in self.endpoints:
@@ -1029,34 +1029,34 @@ from pathlib import Path
 class MCPServerGenerator:
     def __init__(self, template_dir: str = "mcp/templates"):
         self.env = Environment(loader=FileSystemLoader(template_dir))
-    
-    def generate_server(self, 
+
+    def generate_server(self,
                        server_name: str,
                        selected_endpoints: List[EndpointInfo],
                        openapi_spec: Dict,
                        output_dir: str) -> str:
-        
+
         # Generate server structure
         server_dir = Path(output_dir) / server_name
         server_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Generate main server file
         self.generate_main_server(server_name, selected_endpoints, server_dir)
-        
+
         # Generate client wrapper
         self.generate_client_wrapper(openapi_spec, selected_endpoints, server_dir)
-        
+
         # Generate configuration
         self.generate_config(server_name, openapi_spec, server_dir)
-        
+
         # Generate requirements
         self.generate_requirements(server_dir)
-        
+
         # Generate README
         self.generate_readme(server_name, selected_endpoints, server_dir)
-        
+
         return str(server_dir)
-    
+
     def generate_main_server(self, server_name: str, endpoints: List[EndpointInfo], output_dir: Path):
         template = self.env.get_template("server_main.py.j2")
         content = template.render(
@@ -1064,10 +1064,10 @@ class MCPServerGenerator:
             endpoints=endpoints,
             tools=self.generate_tools_from_endpoints(endpoints)
         )
-        
+
         with open(output_dir / "server.py", "w") as f:
             f.write(content)
-    
+
     def generate_tools_from_endpoints(self, endpoints: List[EndpointInfo]) -> List[Dict]:
         tools = []
         for endpoint in endpoints:
@@ -1081,7 +1081,7 @@ class MCPServerGenerator:
             }
             tools.append(tool)
         return tools
-    
+
     def convert_parameters(self, parameters: List[Dict]) -> List[Dict]:
         converted = []
         for param in parameters:
@@ -1123,46 +1123,46 @@ class {{ server_name|title }}Client:
         self.base_url = base_url.rstrip('/')
         self.api_key = api_key
         self.client = httpx.AsyncClient()
-    
+
     def get_headers(self) -> Dict[str, str]:
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
-    
+
     {% for tool in tools %}
     async def {{ tool.name }}(self, **kwargs) -> Dict[str, Any]:
         """{{ tool.description }}"""
         url = f"{self.base_url}{{ tool.path }}"
-        
+
         # Handle path parameters
         for param_name, param_value in kwargs.items():
             if f"{{{param_name}}}" in url:
                 url = url.replace(f"{{{param_name}}}", str(param_value))
-        
+
         # Prepare request
         method = "{{ tool.method }}"
         headers = self.get_headers()
-        
+
         {% if tool.method in ['POST', 'PUT', 'PATCH'] and tool.request_body %}
         # Handle request body
-        json_data = {k: v for k, v in kwargs.items() 
+        json_data = {k: v for k, v in kwargs.items()
                     if f"{{{k}}}" not in "{{ tool.path }}"}
         response = await self.client.request(
             method, url, headers=headers, json=json_data
         )
         {% else %}
         # Handle query parameters
-        params = {k: v for k, v in kwargs.items() 
+        params = {k: v for k, v in kwargs.items()
                  if f"{{{k}}}" not in "{{ tool.path }}"}
         response = await self.client.request(
             method, url, headers=headers, params=params
         )
         {% endif %}
-        
+
         response.raise_for_status()
         return response.json()
-    
+
     {% endfor %}
 
 # Initialize the server
@@ -1199,7 +1199,7 @@ async def handle_{{ tool.name }}(name: str, arguments: Dict[str, Any]) -> List[T
     """Handle {{ tool.name }} tool call."""
     if name != "{{ tool.name }}":
         raise ValueError(f"Unknown tool: {name}")
-    
+
     try:
         result = await client.{{ tool.name }}(**arguments)
         return [TextContent(type="text", text=json.dumps(result, indent=2))]
@@ -1211,14 +1211,14 @@ async def handle_{{ tool.name }}(name: str, arguments: Dict[str, Any]) -> List[T
 
 async def main():
     global client
-    
+
     # Initialize client with configuration
     import os
     base_url = os.getenv("{{ server_name.upper() }}_BASE_URL", "https://api.example.com")
     api_key = os.getenv("{{ server_name.upper() }}_API_KEY")
-    
+
     client = {{ server_name|title }}Client(base_url, api_key)
-    
+
     # Run the server
     async with stdio_server() as (read_stream, write_stream):
         await server.run(
@@ -1262,7 +1262,7 @@ class MCPServerConfig(BaseModel):
 
 class MCPServer(Base, TimestampMixin, TenantMixin):
     __tablename__ = "mcp_servers"
-    
+
     id = Column(String, primary_key=True)
     name = Column(String(100), nullable=False)
     description = Column(String(500))
@@ -1276,13 +1276,13 @@ class MCPServerManager:
     def __init__(self, servers_dir: str = "./mcp_servers"):
         self.servers_dir = Path(servers_dir)
         self.servers_dir.mkdir(exist_ok=True)
-    
-    async def create_server(self, 
+
+    async def create_server(self,
                           config: MCPServerConfig,
                           openapi_spec: Dict,
                           selected_endpoints: List[EndpointInfo]) -> str:
         """Create and optionally deploy a new MCP server."""
-        
+
         # Generate server code
         generator = MCPServerGenerator()
         server_path = generator.generate_server(
@@ -1291,7 +1291,7 @@ class MCPServerManager:
             openapi_spec,
             str(self.servers_dir)
         )
-        
+
         # Save to database
         server_record = MCPServer(
             id=config.name,
@@ -1301,32 +1301,32 @@ class MCPServerManager:
             openapi_spec=openapi_spec,
             status="created"
         )
-        
+
         # Deploy if auto_deploy is enabled
         if config.auto_deploy:
             await self.deploy_server(config.name)
-        
+
         return server_path
-    
+
     async def deploy_server(self, server_name: str) -> bool:
         """Deploy server to Kubernetes."""
         server_dir = self.servers_dir / server_name
-        
+
         try:
             # Build Docker image
             await self.build_docker_image(server_name, server_dir)
-            
+
             # Deploy to Kubernetes
             await self.deploy_to_kubernetes(server_name)
-            
+
             # Update status
             # Update database record status to "active"
-            
+
             return True
         except Exception as e:
             # Update database record status to "error"
             raise e
-    
+
     async def build_docker_image(self, server_name: str, server_dir: Path):
         """Build Docker image for the MCP server."""
         dockerfile_content = f"""
@@ -1339,20 +1339,20 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 CMD ["python", "server.py"]
 """
-        
+
         with open(server_dir / "Dockerfile", "w") as f:
             f.write(dockerfile_content)
-        
+
         # Build image
         cmd = f"docker build -t mcp-{server_name}:latest {server_dir}"
         process = await asyncio.create_subprocess_shell(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
         await process.communicate()
-        
+
         if process.returncode != 0:
             raise Exception(f"Failed to build Docker image for {server_name}")
-    
+
     async def deploy_to_kubernetes(self, server_name: str):
         """Deploy MCP server to Kubernetes."""
         k8s_manifest = f"""
@@ -1393,18 +1393,18 @@ spec:
     targetPort: 8080
   type: ClusterIP
 """
-        
+
         # Apply manifest
         manifest_file = f"/tmp/mcp-{server_name}.yaml"
         with open(manifest_file, "w") as f:
             f.write(k8s_manifest)
-        
+
         cmd = f"kubectl apply -f {manifest_file}"
         process = await asyncio.create_subprocess_shell(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
         await process.communicate()
-        
+
         if process.returncode != 0:
             raise Exception(f"Failed to deploy {server_name} to Kubernetes")
 ```
@@ -1446,24 +1446,24 @@ class AuthManager:
     def __init__(self, secret_key: str, algorithm: str = "HS256"):
         self.secret_key = secret_key
         self.algorithm = algorithm
-    
+
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         return pwd_context.verify(plain_password, hashed_password)
-    
+
     def get_password_hash(self, password: str) -> str:
         return pwd_context.hash(password)
-    
+
     def create_access_token(self, data: Dict, expires_delta: Optional[timedelta] = None):
         to_encode = data.copy()
         if expires_delta:
             expire = datetime.utcnow() + expires_delta
         else:
             expire = datetime.utcnow() + timedelta(minutes=15)
-        
+
         to_encode.update({"exp": expire})
         encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
         return encoded_jwt
-    
+
     def verify_token(self, token: str) -> TokenData:
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
@@ -1471,13 +1471,13 @@ class AuthManager:
             tenant_id: str = payload.get("tenant_id")
             roles: List[str] = payload.get("roles", [])
             permissions: List[str] = payload.get("permissions", [])
-            
+
             if user_id is None:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Could not validate credentials"
                 )
-            
+
             return TokenData(
                 user_id=user_id,
                 tenant_id=tenant_id,
@@ -1515,18 +1515,18 @@ class Permission(str, Enum):
     AGENT_READ = "agent:read"
     AGENT_UPDATE = "agent:update"
     AGENT_DELETE = "agent:delete"
-    
+
     # Conversation permissions
     CONVERSATION_CREATE = "conversation:create"
     CONVERSATION_READ = "conversation:read"
     CONVERSATION_UPDATE = "conversation:update"
     CONVERSATION_DELETE = "conversation:delete"
-    
+
     # MCP permissions
     MCP_SERVER_CREATE = "mcp_server:create"
     MCP_SERVER_DEPLOY = "mcp_server:deploy"
     MCP_SERVER_MANAGE = "mcp_server:manage"
-    
+
     # Admin permissions
     TENANT_MANAGE = "tenant:manage"
     USER_MANAGE = "user:manage"
@@ -1589,17 +1589,17 @@ def require_permissions(*required_permissions: Permission):
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Authentication required"
                 )
-            
+
             user_permissions = set(current_user.permissions)
             required_perms = set(required_permissions)
-            
+
             if not required_perms.issubset(user_permissions):
                 missing_perms = required_perms - user_permissions
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=f"Missing permissions: {', '.join(missing_perms)}"
                 )
-            
+
             return await func(*args, **kwargs)
         return wrapper
     return decorator
@@ -1632,7 +1632,7 @@ class AuditEvent(BaseModel):
 
 class AuditLog(Base, TenantMixin):
     __tablename__ = "audit_logs"
-    
+
     id = Column(String, primary_key=True)
     event_type = Column(String(50), nullable=False, index=True)
     resource_type = Column(String(50), nullable=False, index=True)
@@ -1647,10 +1647,10 @@ class AuditLog(Base, TenantMixin):
 class AuditLogger:
     def __init__(self):
         self.logger = logging.getLogger("audit")
-    
+
     async def log_event(self, event: AuditEvent):
         """Log an audit event to both database and log file."""
-        
+
         # Save to database
         audit_record = AuditLog(
             id=f"{event.timestamp.isoformat()}_{event.user_id}_{event.action}",
@@ -1665,7 +1665,7 @@ class AuditLogger:
             user_agent=event.user_agent,
             timestamp=event.timestamp
         )
-        
+
         # Also log to structured log file
         self.logger.info(
             "AUDIT_EVENT",
@@ -1681,9 +1681,9 @@ class AuditLogger:
                 "timestamp": event.timestamp.isoformat()
             }
         )
-    
-    async def log_agent_interaction(self, user_id: str, tenant_id: str, 
-                                  conversation_id: str, agent_name: str, 
+
+    async def log_agent_interaction(self, user_id: str, tenant_id: str,
+                                  conversation_id: str, agent_name: str,
                                   action: str, details: Dict[str, Any]):
         """Log agent interaction events."""
         event = AuditEvent(
@@ -1700,9 +1700,9 @@ class AuditLogger:
             timestamp=datetime.utcnow()
         )
         await self.log_event(event)
-    
+
     async def log_mcp_server_action(self, user_id: str, tenant_id: str,
-                                  server_name: str, action: str, 
+                                  server_name: str, action: str,
                                   details: Dict[str, Any]):
         """Log MCP server management actions."""
         event = AuditEvent(
@@ -1725,16 +1725,16 @@ class AuditMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, audit_logger: AuditLogger):
         super().__init__(app)
         self.audit_logger = audit_logger
-    
+
     async def dispatch(self, request: Request, call_next):
         start_time = datetime.utcnow()
-        
+
         # Extract user info if available
         user_id = getattr(request.state, 'user_id', 'anonymous')
         tenant_id = getattr(request.state, 'tenant_id', 'unknown')
-        
+
         response = await call_next(request)
-        
+
         # Log API access
         if request.url.path.startswith('/api/'):
             await self.audit_logger.log_event(AuditEvent(
@@ -1753,7 +1753,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
                 user_agent=request.headers.get("user-agent"),
                 timestamp=start_time
             ))
-        
+
         return response
 ```
 
@@ -1822,7 +1822,7 @@ export function AgentComponentTemplate({
         </div>
         <p className="text-sm text-gray-600">{agentDescription}</p>
       </CardHeader>
-      
+
       <CardContent className="space-y-4">
         {/* Tools Section */}
         <div>
@@ -1943,7 +1943,7 @@ export function MCPServerComponent({
             {getStatusIcon()}
             <span className="text-sm font-medium capitalize">{status}</span>
           </div>
-          
+
           {status === 'deploying' && (
             <div className="space-y-2">
               <Progress value={deploymentProgress} className="h-2" />
@@ -2003,29 +2003,29 @@ def cli():
 @click.option('--tools', '-t', multiple=True, help='Tools to include')
 @click.option('--guardrails', '-g', multiple=True, help='Guardrails to include')
 @click.option('--output-dir', '-o', default='./agents', help='Output directory')
-def create_agent(agent_name: str, description: str, tools: List[str], 
+def create_agent(agent_name: str, description: str, tools: List[str],
                 guardrails: List[str], output_dir: str):
     """Create a new agent with boilerplate code."""
-    
+
     agent_dir = Path(output_dir) / agent_name.lower().replace(' ', '_')
     agent_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Generate agent Python file
     generate_agent_file(agent_name, description, tools, guardrails, agent_dir)
-    
+
     # Generate React component
     generate_agent_component(agent_name, description, agent_dir)
-    
+
     # Generate tests
     generate_agent_tests(agent_name, agent_dir)
-    
+
     click.echo(f"✅ Agent '{agent_name}' created in {agent_dir}")
     click.echo(f"📁 Files created:")
     click.echo(f"   - {agent_name.lower()}_agent.py")
     click.echo(f"   - {agent_name}Component.tsx")
     click.echo(f"   - test_{agent_name.lower()}_agent.py")
 
-def generate_agent_file(name: str, description: str, tools: List[str], 
+def generate_agent_file(name: str, description: str, tools: List[str],
                        guardrails: List[str], output_dir: Path):
     """Generate the Python agent file."""
     template = """
@@ -2040,7 +2040,7 @@ class {{ name }}Context(BaseModel):
 
 {% for tool in tools %}
 @function_tool
-async def {{ tool }}_tool(context: RunContextWrapper[{{ name }}Context], 
+async def {{ tool }}_tool(context: RunContextWrapper[{{ name }}Context],
                          # Add parameters here
                          ) -> str:
     \"\"\"{{ tool }} tool implementation.\"\"\"
@@ -2061,17 +2061,17 @@ async def {{ guardrail.lower() }}_guardrail(context, agent, input):
 
 {% endfor %}
 
-def {{ name.lower() }}_instructions(run_context: RunContextWrapper[{{ name }}Context], 
+def {{ name.lower() }}_instructions(run_context: RunContextWrapper[{{ name }}Context],
                                    agent: Agent[{{ name }}Context]) -> str:
     \"\"\"Dynamic instructions for {{ name }}.\"\"\"
     return f\"\"\"
     You are {{ name }}, {{ description or 'a helpful AI agent' }}.
-    
+
     Your role is to:
     1. [Define primary responsibilities]
     2. [Define secondary responsibilities]
     3. [Define handoff conditions]
-    
+
     Available tools: {{ tools | join(', ') }}
     \"\"\"
 
@@ -2085,7 +2085,7 @@ def {{ name.lower() }}_instructions(run_context: RunContextWrapper[{{ name }}Con
     input_guardrails=[{% for guardrail in guardrails %}{{ guardrail.lower() }}_guardrail{% if not loop.last %}, {% endif %}{% endfor %}]
 )
 """
-    
+
     env = Environment()
     template_obj = env.from_string(template)
     content = template_obj.render(
@@ -2094,7 +2094,7 @@ def {{ name.lower() }}_instructions(run_context: RunContextWrapper[{{ name }}Con
         tools=tools,
         guardrails=guardrails
     )
-    
+
     with open(output_dir / f"{name.lower().replace(' ', '_')}_agent.py", "w") as f:
         f.write(content)
 
@@ -2104,30 +2104,30 @@ def {{ name.lower() }}_instructions(run_context: RunContextWrapper[{{ name }}Con
 @click.option('--base-url', required=True, help='Base URL for the API')
 @click.option('--output-dir', '-o', default='./mcp_servers', help='Output directory')
 @click.option('--auto-deploy', is_flag=True, help='Auto-deploy after creation')
-def create_mcp_server(server_name: str, openapi_spec_file: str, base_url: str, 
+def create_mcp_server(server_name: str, openapi_spec_file: str, base_url: str,
                      output_dir: str, auto_deploy: bool):
     """Create MCP server from OpenAPI specification."""
-    
+
     if not os.path.exists(openapi_spec_file):
         click.echo(f"❌ OpenAPI spec file not found: {openapi_spec_file}")
         return
-    
+
     with open(openapi_spec_file, 'r') as f:
         spec_content = f.read()
-    
+
     # Analyze the spec
     from mcp.openapi_analyzer import OpenAPIAnalyzer
     analyzer = OpenAPIAnalyzer(spec_content)
-    
+
     click.echo(f"📊 Analyzed OpenAPI spec:")
     click.echo(f"   - {len(analyzer.endpoints)} endpoints found")
-    
+
     # Show endpoint groups
     groups = analyzer.generate_functionality_groups()
     click.echo(f"   - {len(groups)} functionality groups:")
     for group, endpoints in groups.items():
         click.echo(f"     • {group}: {len(endpoints)} endpoints")
-    
+
     # Interactive endpoint selection
     selected_endpoints = []
     if click.confirm("Select endpoints interactively?"):
@@ -2142,20 +2142,20 @@ def create_mcp_server(server_name: str, openapi_spec_file: str, base_url: str,
         # Select high-value endpoints automatically
         selected_endpoints = analyzer.get_high_value_endpoints()
         click.echo(f"🎯 Auto-selected {len(selected_endpoints)} high-value endpoints")
-    
+
     # Generate the server
     from mcp.server_generator import MCPServerGenerator
     generator = MCPServerGenerator()
-    
+
     server_path = generator.generate_server(
         server_name,
         selected_endpoints,
         analyzer.spec,
         output_dir
     )
-    
+
     click.echo(f"✅ MCP server '{server_name}' created in {server_path}")
-    
+
     if auto_deploy:
         click.echo("🚀 Deploying server...")
         # Implement deployment logic
@@ -2165,21 +2165,21 @@ def create_mcp_server(server_name: str, openapi_spec_file: str, base_url: str,
 def dev():
     """Start development environment with hot reload."""
     click.echo("🚀 Starting development environment...")
-    
+
     # Start docker-compose for development
     os.system("docker-compose -f docker-compose.dev.yml up --build")
 
 @cli.command()
-@click.option('--environment', '-e', default='development', 
+@click.option('--environment', '-e', default='development',
               type=click.Choice(['development', 'staging', 'production']))
 def deploy(environment: str):
     """Deploy to specified environment."""
     click.echo(f"🚀 Deploying to {environment}...")
-    
+
     if environment == 'production':
         if not click.confirm("Are you sure you want to deploy to production?"):
             return
-    
+
     # Implement deployment logic based on environment
     click.echo(f"✅ Deployed to {environment} successfully!")
 
@@ -2213,59 +2213,59 @@ class TelemetryManager:
         self.service_name = service_name
         self.setup_tracing()
         self.setup_metrics()
-    
+
     def setup_tracing(self):
         """Setup distributed tracing with Jaeger."""
         trace.set_tracer_provider(TracerProvider())
         tracer = trace.get_tracer(__name__)
-        
+
         jaeger_exporter = JaegerExporter(
             agent_host_name="jaeger",
             agent_port=6831,
         )
-        
+
         span_processor = BatchSpanProcessor(jaeger_exporter)
         trace.get_tracer_provider().add_span_processor(span_processor)
-    
+
     def setup_metrics(self):
         """Setup metrics collection with Prometheus."""
         reader = PrometheusMetricReader()
         metrics.set_meter_provider(MeterProvider(metric_readers=[reader]))
-        
+
         self.meter = metrics.get_meter(__name__)
-        
+
         # Define custom metrics
         self.conversation_counter = self.meter.create_counter(
             "conversations_total",
             description="Total number of conversations"
         )
-        
+
         self.agent_handoff_counter = self.meter.create_counter(
             "agent_handoffs_total",
             description="Total number of agent handoffs"
         )
-        
+
         self.response_time_histogram = self.meter.create_histogram(
             "response_time_seconds",
             description="Response time in seconds"
         )
-        
+
         self.active_conversations_gauge = self.meter.create_up_down_counter(
             "active_conversations",
             description="Number of active conversations"
         )
-    
+
     def instrument_fastapi(self, app):
         """Instrument FastAPI application."""
         FastAPIInstrumentor.instrument_app(app)
         SQLAlchemyInstrumentor().instrument()
         RedisInstrumentor().instrument()
-    
+
     def record_conversation_start(self, tenant_id: str, user_id: str):
         """Record conversation start metrics."""
         self.conversation_counter.add(1, {"tenant_id": tenant_id})
         self.active_conversations_gauge.add(1, {"tenant_id": tenant_id})
-    
+
     def record_agent_handoff(self, from_agent: str, to_agent: str, tenant_id: str):
         """Record agent handoff metrics."""
         self.agent_handoff_counter.add(1, {
@@ -2273,7 +2273,7 @@ class TelemetryManager:
             "to_agent": to_agent,
             "tenant_id": tenant_id
         })
-    
+
     def record_response_time(self, duration: float, endpoint: str, status_code: int):
         """Record API response time."""
         self.response_time_histogram.record(duration, {
@@ -2289,30 +2289,30 @@ class MonitoringMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, telemetry: TelemetryManager):
         super().__init__(app)
         self.telemetry = telemetry
-    
+
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
-        
+
         # Create span for the request
         tracer = trace.get_tracer(__name__)
         with tracer.start_as_current_span(f"{request.method} {request.url.path}") as span:
             span.set_attribute("http.method", request.method)
             span.set_attribute("http.url", str(request.url))
-            
+
             response = await call_next(request)
-            
+
             duration = time.time() - start_time
-            
+
             span.set_attribute("http.status_code", response.status_code)
             span.set_attribute("http.response_time", duration)
-            
+
             # Record metrics
             self.telemetry.record_response_time(
-                duration, 
-                request.url.path, 
+                duration,
+                request.url.path,
                 response.status_code
             )
-            
+
             return response
 ```
 
@@ -2342,14 +2342,14 @@ class HealthChecker:
         self.redis_client = redis_client
         self.start_time = time.time()
         self.version = "1.0.0"  # Should come from config
-    
+
     async def check_database(self) -> Dict[str, Any]:
         """Check database connectivity and performance."""
         try:
             start = time.time()
             result = await self.db_session.execute(text("SELECT 1"))
             duration = time.time() - start
-            
+
             return {
                 "status": "healthy",
                 "response_time_ms": round(duration * 1000, 2),
@@ -2361,14 +2361,14 @@ class HealthChecker:
                 "error": str(e),
                 "message": "Database connection failed"
             }
-    
+
     async def check_redis(self) -> Dict[str, Any]:
         """Check Redis connectivity and performance."""
         try:
             start = time.time()
             await self.redis_client.ping()
             duration = time.time() - start
-            
+
             return {
                 "status": "healthy",
                 "response_time_ms": round(duration * 1000, 2),
@@ -2380,7 +2380,7 @@ class HealthChecker:
                 "error": str(e),
                 "message": "Redis connection failed"
             }
-    
+
     async def check_openai_api(self) -> Dict[str, Any]:
         """Check OpenAI API connectivity."""
         try:
@@ -2390,7 +2390,7 @@ class HealthChecker:
             # Make a minimal API call
             response = await openai.Model.list()
             duration = time.time() - start
-            
+
             return {
                 "status": "healthy",
                 "response_time_ms": round(duration * 1000, 2),
@@ -2402,34 +2402,34 @@ class HealthChecker:
                 "error": str(e),
                 "message": "OpenAI API connection failed"
             }
-    
+
     def check_system_resources(self) -> Dict[str, Any]:
         """Check system resource usage."""
         try:
             cpu_percent = psutil.cpu_percent(interval=1)
             memory = psutil.virtual_memory()
             disk = psutil.disk_usage('/')
-            
+
             # Define thresholds
             cpu_threshold = 80
             memory_threshold = 85
             disk_threshold = 90
-            
+
             status = "healthy"
             warnings = []
-            
+
             if cpu_percent > cpu_threshold:
                 status = "degraded"
                 warnings.append(f"High CPU usage: {cpu_percent}%")
-            
+
             if memory.percent > memory_threshold:
                 status = "degraded"
                 warnings.append(f"High memory usage: {memory.percent}%")
-            
+
             if disk.percent > disk_threshold:
                 status = "degraded"
                 warnings.append(f"High disk usage: {disk.percent}%")
-            
+
             return {
                 "status": status,
                 "cpu_percent": cpu_percent,
@@ -2443,11 +2443,11 @@ class HealthChecker:
                 "error": str(e),
                 "message": "Failed to check system resources"
             }
-    
+
     async def get_health_status(self) -> HealthStatus:
         """Get comprehensive health status."""
         checks = {}
-        
+
         # Run all health checks concurrently
         db_check, redis_check, openai_check = await asyncio.gather(
             self.check_database(),
@@ -2455,7 +2455,7 @@ class HealthChecker:
             self.check_openai_api(),
             return_exceptions=True
         )
-        
+
         checks["database"] = db_check if not isinstance(db_check, Exception) else {
             "status": "unhealthy", "error": str(db_check)
         }
@@ -2466,17 +2466,17 @@ class HealthChecker:
             "status": "unhealthy", "error": str(openai_check)
         }
         checks["system"] = self.check_system_resources()
-        
+
         # Determine overall status
         statuses = [check.get("status", "unhealthy") for check in checks.values()]
-        
+
         if "unhealthy" in statuses:
             overall_status = "unhealthy"
         elif "degraded" in statuses:
             overall_status = "degraded"
         else:
             overall_status = "healthy"
-        
+
         return HealthStatus(
             status=overall_status,
             timestamp=datetime.utcnow(),
@@ -2499,13 +2499,13 @@ async def readiness_probe():
     """Kubernetes readiness probe endpoint."""
     health_checker = HealthChecker(db_session, redis_client)
     status = await health_checker.get_health_status()
-    
+
     if status.status == "unhealthy":
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Service not ready"
         )
-    
+
     return {"status": "ready"}
 
 @router.get("/live")
@@ -2534,7 +2534,7 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:15
@@ -2548,7 +2548,7 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-      
+
       redis:
         image: redis:7-alpine
         options: >-
@@ -2561,31 +2561,31 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-    
+
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
         cache-dependency-path: ui/package-lock.json
-    
+
     - name: Install Python dependencies
       run: |
         cd python-backend
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pytest pytest-asyncio pytest-cov
-    
+
     - name: Install Node.js dependencies
       run: |
         cd ui
         npm ci
-    
+
     - name: Run Python tests
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
@@ -2594,12 +2594,12 @@ jobs:
       run: |
         cd python-backend
         pytest --cov=. --cov-report=xml
-    
+
     - name: Run TypeScript tests
       run: |
         cd ui
         npm run test
-    
+
     - name: Run linting
       run: |
         cd python-backend
@@ -2607,10 +2607,10 @@ jobs:
         flake8 .
         black --check .
         isort --check-only .
-        
+
         cd ../ui
         npm run lint
-    
+
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
@@ -2620,7 +2620,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
       with:
@@ -2628,7 +2628,7 @@ jobs:
         scan-ref: '.'
         format: 'sarif'
         output: 'trivy-results.sarif'
-    
+
     - name: Upload Trivy scan results to GitHub Security tab
       uses: github/codeql-action/upload-sarif@v2
       with:
@@ -2638,21 +2638,21 @@ jobs:
     needs: [test, security-scan]
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
-    
+
     permissions:
       contents: read
       packages: write
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Log in to Container Registry
       uses: docker/login-action@v3
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-    
+
     - name: Extract metadata
       id: meta
       uses: docker/metadata-action@v5
@@ -2662,7 +2662,7 @@ jobs:
           type=ref,event=branch
           type=ref,event=pr
           type=sha,prefix={{branch}}-
-    
+
     - name: Build and push backend image
       uses: docker/build-push-action@v5
       with:
@@ -2671,7 +2671,7 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}-backend
         labels: ${{ steps.meta.outputs.labels }}
-    
+
     - name: Build and push frontend image
       uses: docker/build-push-action@v5
       with:
@@ -2686,10 +2686,10 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop'
     environment: staging
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Deploy to staging
       run: |
         # Update Kubernetes manifests with new image tags
@@ -2701,10 +2701,10 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     environment: production
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Deploy to production
       run: |
         # Update Kubernetes manifests with new image tags

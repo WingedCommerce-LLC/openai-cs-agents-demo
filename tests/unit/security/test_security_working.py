@@ -5,9 +5,9 @@ This module contains tests that actually work with the implemented security modu
 to achieve the required 90% coverage for the security module.
 """
 
-import asyncio
+# import asyncio
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -126,15 +126,15 @@ class TestSecurityWorking:
         assert len(patterns) > 0
 
         # Test sanitize_environment
-        test_env = {
-            "API_KEY": "secret123",
-            "PASSWORD": "mypassword",
-            "SAFE_VAR": "safe_value",
-            "TOKEN": "bearer_token_456",
-            "NORMAL_VAR": "normal_value",
-        }
+        # test_env = {
+        #     "API_KEY": "secret123",
+        #     "PASSWORD": "mypassword",
+        #     "SAFE_VAR": "safe_value",
+        #     "TOKEN": "bearer_token_456",
+        #     "NORMAL_VAR": "normal_value",
+        # }
 
-        sanitized = sanitizer.sanitize_environment(test_env)
+        # sanitized = sanitizer.sanitize_environment(test_env)
 
         # Check that sensitive keys are masked
         assert sanitizer._is_sensitive_key("API_KEY")

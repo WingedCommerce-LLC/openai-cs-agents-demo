@@ -43,4 +43,3 @@ export interface GuardrailCheck {
   passed: boolean
   timestamp: Date
 }
-

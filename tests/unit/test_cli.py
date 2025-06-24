@@ -5,7 +5,7 @@ Tests the command-line interface functionality including
 agent management, configuration, and user interactions.
 """
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
 import pytest
 from click.testing import CliRunner
@@ -57,15 +57,15 @@ class TestAgentCLI:
         # At least one pattern should be present
         assert any(pattern in output_lower for pattern in expected_patterns)
 
-    @patch("cli.agent_cli.logger")
-    def test_cli_logging_integration(self, mock_logger, cli_runner):
+    def test_cli_logging_integration(self, cli_runner):
         """Test that CLI integrates with logging."""
         # Test that we can invoke CLI without logging errors
-        try:
-            result = cli_runner.invoke(cli, ["--help"])
-            assert result.exit_code == 0
-        except Exception:
-            pytest.skip("CLI logging integration test skipped")
+        with patch("logging.getLogger"):
+            try:
+                result = cli_runner.invoke(cli, ["--help"])
+                assert result.exit_code == 0
+            except Exception:
+                pytest.skip("CLI logging integration test skipped")
 
     def test_cli_error_handling(self, cli_runner):
         """Test CLI error handling for invalid commands."""
@@ -83,16 +83,15 @@ class TestAgentCLI:
         except Exception:
             pytest.skip("Configuration handling not implemented")
 
-    @patch("cli.agent_cli.os.environ")
-    def test_cli_environment_variables(self, mock_environ, cli_runner):
+    def test_cli_environment_variables(self, cli_runner):
         """Test CLI environment variable handling."""
-        mock_environ.get.return_value = "test_value"
-
-        try:
-            result = cli_runner.invoke(cli, ["--help"])
-            assert result.exit_code == 0
-        except Exception:
-            pytest.skip("Environment variable handling test skipped")
+        # Test CLI with environment variables
+        with patch.dict("os.environ", {"CLI_TEST_VAR": "test_value"}):
+            try:
+                result = cli_runner.invoke(cli, ["--help"])
+                assert result.exit_code == 0
+            except Exception:
+                pytest.skip("Environment variable handling test skipped")
 
     def test_cli_input_validation(self, cli_runner):
         """Test CLI input validation."""

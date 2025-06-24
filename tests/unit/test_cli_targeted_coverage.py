@@ -6,14 +6,10 @@ in the CLI module to maximize coverage impact.
 """
 
 import os
-import shutil
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, mock_open, patch
-
-import pytest
-from click.testing import CliRunner
+from unittest.mock import patch
 
 
 class TestCLITargetedCoverage:
@@ -179,7 +175,7 @@ paths:
         runner = CliRunner()
 
         # Mock os.system to prevent actual docker commands
-        with patch("os.system") as mock_system:
+        with patch("os.system"):
             with patch("os.path.exists") as mock_exists:
                 # Test dev start with existing docker-compose file
                 mock_exists.return_value = True
@@ -473,7 +469,7 @@ paths:
         assert agent_cli.cli.name == "cli"
 
         # Test that commands are properly registered
-        commands = agent_cli.cli.list_commands(None)
+        commands = agent_cli.cli.list_commands(None)  # type: ignore
         expected_commands = ["agent", "mcp", "dev", "deploy", "init"]
         for cmd in expected_commands:
             assert cmd in commands

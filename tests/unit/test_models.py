@@ -7,8 +7,6 @@ timestamps, soft delete, and serialization.
 
 from datetime import datetime
 
-import pytest
-
 from models.base import Base, SoftDeleteMixin, TimestampMixin
 
 

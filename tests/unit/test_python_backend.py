@@ -7,15 +7,61 @@ and testing their functionality to achieve higher coverage.
 
 import os
 import sys
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Add python-backend to path for direct import
+# Add python_backend to path for direct import
 sys.path.insert(
-    0, os.path.join(os.path.dirname(__file__), "..", "..", "python-backend")
+    0, os.path.join(os.path.dirname(__file__), "..", "..", "python_backend")
 )
+
+# Mock all the required modules before any imports
+
+
+def setup_mocks():
+    """Set up all required mocks for python_backend modules."""
+    # Mock the agents module and its components
+    mock_agents = MagicMock()
+    mock_agents.Agent = MagicMock()
+    mock_agents.GuardrailFunctionOutput = MagicMock()
+    mock_agents.RunContextWrapper = MagicMock()
+    mock_agents.Runner = MagicMock()
+    mock_agents.TResponseInputItem = MagicMock()
+    mock_agents.function_tool = MagicMock()
+    mock_agents.handoff = MagicMock()
+    mock_agents.input_guardrail = MagicMock()
+    mock_agents.Handoff = MagicMock()
+    mock_agents.HandoffOutputItem = MagicMock()
+    mock_agents.InputGuardrailTripwireTriggered = MagicMock()
+    mock_agents.ItemHelpers = MagicMock()
+    mock_agents.MessageOutputItem = MagicMock()
+    mock_agents.ToolCallItem = MagicMock()
+    mock_agents.ToolCallOutputItem = MagicMock()
+    # Mock the agents.extensions module
+    mock_extensions = MagicMock()
+    mock_handoff_prompt = MagicMock()
+    mock_handoff_prompt.RECOMMENDED_PROMPT_PREFIX = "Test prompt prefix"
+    mock_extensions.handoff_prompt = mock_handoff_prompt
+    mock_agents.extensions = mock_extensions
+    sys.modules["agents"] = mock_agents
+    sys.modules["agents.extensions"] = mock_extensions
+    sys.modules["agents.extensions.handoff_prompt"] = mock_handoff_prompt
+    return mock_agents, mock_extensions, mock_handoff_prompt
+
+
+def cleanup_mocks():
+    """Clean up all mocked modules."""
+    modules_to_clean = [
+        "agents",
+        "agents.extensions",
+        "agents.extensions.handoff_prompt",
+        "api",
+        "main",
+    ]
+    for module in modules_to_clean:
+        if module in sys.modules:
+            del sys.modules[module]
 
 
 class TestPythonBackendAPI:
@@ -24,9 +70,8 @@ class TestPythonBackendAPI:
     def test_api_module_import(self):
         """Test that API module can be imported."""
         try:
-            # Mock the agents module that doesn't exist
-            mock_agents = MagicMock()
-            sys.modules["agents"] = mock_agents
+            # Set up comprehensive mocks
+            setup_mocks()
 
             # Now try to import the API module
             import api
@@ -40,17 +85,13 @@ class TestPythonBackendAPI:
             pytest.skip(f"API module import failed: {e}")
         finally:
             # Clean up
-            if "agents" in sys.modules:
-                del sys.modules["agents"]
-            if "api" in sys.modules:
-                del sys.modules["api"]
+            cleanup_mocks()
 
     def test_api_app_creation(self):
         """Test API app creation."""
         try:
-            # Mock dependencies
-            mock_agents = MagicMock()
-            sys.modules["agents"] = mock_agents
+            # Set up comprehensive mocks
+            setup_mocks()
 
             with patch("fastapi.FastAPI") as mock_fastapi:
                 mock_app = MagicMock()
@@ -66,10 +107,7 @@ class TestPythonBackendAPI:
             pytest.skip("API module import failed")
         finally:
             # Clean up
-            if "agents" in sys.modules:
-                del sys.modules["agents"]
-            if "api" in sys.modules:
-                del sys.modules["api"]
+            cleanup_mocks()
 
     def test_api_routes_registration(self):
         """Test API routes registration."""
@@ -120,9 +158,6 @@ class TestPythonBackendAPI:
         try:
             mock_agents = MagicMock()
             sys.modules["agents"] = mock_agents
-
-            import api
-
             # Test environment variables are read
             debug_value = os.environ.get("DEBUG", "false")
             port_value = os.environ.get("PORT", "8000")
@@ -144,7 +179,7 @@ class TestPythonBackendAPI:
             mock_agents = MagicMock()
             sys.modules["agents"] = mock_agents
 
-            with patch("fastapi.middleware.cors.CORSMiddleware") as mock_cors:
+            with patch("fastapi.middleware.cors.CORSMiddleware"):
                 import api
 
                 # CORS might be configured
@@ -186,7 +221,7 @@ class TestPythonBackendAPI:
             mock_agents = MagicMock()
             sys.modules["agents"] = mock_agents
 
-            with patch("logging.getLogger") as mock_logger:
+            with patch("logging.getLogger"):
                 import api
 
                 # Logging should be configured
@@ -220,7 +255,7 @@ class TestPythonBackendMain:
     def test_main_application_setup(self):
         """Test main application setup."""
         try:
-            with patch("uvicorn.run") as mock_uvicorn:
+            with patch("uvicorn.run"):
                 import main
 
                 # Test that main module has expected components
@@ -236,8 +271,6 @@ class TestPythonBackendMain:
     def test_main_configuration_loading(self):
         """Test main configuration loading."""
         try:
-            import main
-
             # Test configuration values
             host = os.environ.get("HOST", "0.0.0.0")
             port = int(os.environ.get("PORT", "8000"))
@@ -256,7 +289,7 @@ class TestPythonBackendMain:
     def test_main_server_configuration(self):
         """Test main server configuration."""
         try:
-            with patch("uvicorn.run") as mock_uvicorn:
+            with patch("uvicorn.run"):
                 import main
 
                 # Test server configuration
@@ -271,7 +304,7 @@ class TestPythonBackendMain:
     def test_main_logging_configuration(self):
         """Test main logging configuration."""
         try:
-            with patch("logging.basicConfig") as mock_logging:
+            with patch("logging.basicConfig"):
                 import main
 
                 # Logging should be configured
@@ -286,7 +319,7 @@ class TestPythonBackendMain:
     def test_main_database_setup(self):
         """Test main database setup."""
         try:
-            with patch("sqlalchemy.create_engine") as mock_engine:
+            with patch("sqlalchemy.create_engine"):
                 import main
 
                 # Database setup might be present
@@ -301,7 +334,7 @@ class TestPythonBackendMain:
     def test_main_redis_setup(self):
         """Test main Redis setup."""
         try:
-            with patch("redis.Redis") as mock_redis:
+            with patch("redis.Redis"):
                 import main
 
                 # Redis setup might be present
@@ -316,7 +349,7 @@ class TestPythonBackendMain:
     def test_main_signal_handlers(self):
         """Test main signal handlers."""
         try:
-            with patch("signal.signal") as mock_signal:
+            with patch("signal.signal"):
                 import main
 
                 # Signal handlers might be configured
@@ -401,7 +434,7 @@ class TestPythonBackendIntegration:
     def test_logging_integration(self):
         """Test logging integration across modules."""
         try:
-            with patch("logging.getLogger") as mock_logger:
+            with patch("logging.getLogger"):
                 mock_agents = MagicMock()
                 sys.modules["agents"] = mock_agents
 
@@ -446,7 +479,7 @@ class TestPythonBackendIntegration:
             sys.modules["agents"] = mock_agents
 
             # Test dependency injection
-            with patch("fastapi.Depends") as mock_depends:
+            with patch("fastapi.Depends"):
                 import api
 
                 assert api is not None

@@ -15,14 +15,20 @@ class DefaultDirAgentContext(BaseModel):
     pass
 
 # TODO: Implement tools
-# TODO: Implement guardrails  
+# TODO: Implement guardrails
 # TODO: Implement agent instructions
 
-defaultdiragent_agent = Agent[DefaultDirAgentContext](
+defaultdiragent_agent = Agent[
+    DefaultDirAgentContext
+](
     name="DefaultDirAgent",
     model="gpt-4.1",
-    handoff_description="Handles defaultdiragent related tasks",
-    instructions="You are DefaultDirAgent. A helpful AI agent.",
+    handoff_description=(
+        "{description or 'Handles ' + agent_name.lower() + ' related tasks'}"
+    ),
+    instructions=(
+        "You are DefaultDirAgent. {description or 'A helpful AI agent.'}"
+    ),
     tools=[],  # Add tools here
     input_guardrails=[]  # Add guardrails here
 )

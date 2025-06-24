@@ -2,49 +2,59 @@
 """
 OpenAI Agents Enterprise CLI
 
-A comprehensive command-line tool for managing agents, MCP servers, 
+A comprehensive command-line tool for managing agents, MCP servers,
 and enterprise deployments.
 """
 
-import click
 import os
 import sys
 from pathlib import Path
-from typing import List, Dict
+from typing import List
+
+import click
 
 # Add the parent directory to the path so we can import our modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
 
 @click.group()
 @click.version_option(version="1.0.0")
 def cli():
     """OpenAI Agents Enterprise CLI
-    
+
     Manage agents, MCP servers, and enterprise deployments with ease.
     """
     pass
+
 
 @cli.group()
 def agent():
     """Agent management commands."""
     pass
 
+
 @agent.command()
-@click.argument('agent_name')
-@click.option('--description', '-d', help='Agent description')
-@click.option('--tools', '-t', multiple=True, help='Tools to include')
-@click.option('--guardrails', '-g', multiple=True, help='Guardrails to include')
-@click.option('--output-dir', '-o', default='./agents', help='Output directory')
-def create(agent_name: str, description: str, tools: List[str], 
-          guardrails: List[str], output_dir: str):
+@click.argument("agent_name")
+@click.option("--description", "-d", help="Agent description")
+@click.option("--tools", "-t", multiple=True, help="Tools to include")
+@click.option("--guardrails", "-g", multiple=True, help="Guardrails to include")
+@click.option("--output-dir", "-o", default="./agents", help="Output directory")
+def create(
+    agent_name: str,
+    description: str,
+    tools: List[str],
+    guardrails: List[str],
+    output_dir: str,
+):
     """Create a new agent with boilerplate code."""
-    
-    agent_dir = Path(output_dir) / agent_name.lower().replace(' ', '_')
+
+    agent_dir = Path(output_dir) / agent_name.lower().replace(" ", "_")
     agent_dir.mkdir(parents=True, exist_ok=True)
-    
+
     click.echo(f"🤖 Creating agent '{agent_name}'...")
-    
+
     # Generate agent Python file
+    default_handoff = "'Handles ' + agent_name.lower() + ' related tasks'"
     agent_template = f'''
 """
 {agent_name} Agent
@@ -62,117 +72,150 @@ class {agent_name.replace(' ', '')}Context(BaseModel):
     pass
 
 # TODO: Implement tools
-# TODO: Implement guardrails  
+# TODO: Implement guardrails
 # TODO: Implement agent instructions
 
-{agent_name.lower().replace(' ', '_')}_agent = Agent[{agent_name.replace(' ', '')}Context](
+{agent_name.lower().replace(' ', '_')}_agent = Agent[
+    {agent_name.replace(' ', '')}Context
+](
     name="{agent_name}",
     model="gpt-4.1",
-    handoff_description="{description or f'Handles {agent_name.lower()} related tasks'}",
-    instructions="You are {agent_name}. {description or 'A helpful AI agent.'}",
+    handoff_description=(
+        "{{description or {default_handoff}}}"
+    ),
+    instructions=(
+        "You are {agent_name}. {{description or 'A helpful AI agent.'}}"
+    ),
     tools=[],  # Add tools here
     input_guardrails=[]  # Add guardrails here
 )
 '''
-    
-    with open(agent_dir / f"{agent_name.lower().replace(' ', '_')}_agent.py", "w") as f:
+
+    agent_filename = f"{agent_name.lower().replace(' ', '_')}_agent.py"
+    with open(agent_dir / agent_filename, "w") as f:
         f.write(agent_template)
-    
+
     click.echo(f"✅ Agent '{agent_name}' created in {agent_dir}")
-    click.echo(f"📁 Files created:")
-    click.echo(f"   - {agent_name.lower().replace(' ', '_')}_agent.py")
+    click.echo("📁 Files created:")
+    click.echo("   - " + agent_filename)
+
 
 @cli.group()
 def mcp():
     """MCP server management commands."""
     pass
 
+
 @mcp.command()
-@click.argument('server_name')
-@click.argument('openapi_spec_file')
-@click.option('--base-url', required=True, help='Base URL for the API')
-@click.option('--output-dir', '-o', default='./mcp_servers', help='Output directory')
-@click.option('--auto-deploy', is_flag=True, help='Auto-deploy after creation')
-def create_server(server_name: str, openapi_spec_file: str, base_url: str, 
-                 output_dir: str, auto_deploy: bool):
+@click.argument("server_name")
+@click.argument("openapi_spec_file")
+@click.option("--base-url", required=True, help="Base URL for the API")
+@click.option("--output-dir", "-o", default="./mcp_servers", help="Output directory")
+@click.option("--auto-deploy", is_flag=True, help="Auto-deploy after creation")
+def create_server(
+    server_name: str,
+    openapi_spec_file: str,
+    base_url: str,
+    output_dir: str,
+    auto_deploy: bool,
+):
     """Create MCP server from OpenAPI specification."""
-    
+
     if not os.path.exists(openapi_spec_file):
         click.echo(f"❌ OpenAPI spec file not found: {openapi_spec_file}")
         return
-    
+
     click.echo(f"🔧 Creating MCP server '{server_name}'...")
     click.echo(f"📊 Analyzing OpenAPI spec: {openapi_spec_file}")
     click.echo(f"🌐 Base URL: {base_url}")
-    
+
     # TODO: Implement OpenAPI analysis and MCP server generation
-    click.echo(f"✅ MCP server '{server_name}' would be created in {output_dir}")
-    
+    success_msg = f"✅ MCP server '{server_name}' would be created in {output_dir}"
+    click.echo(success_msg)
+
     if auto_deploy:
         click.echo("🚀 Auto-deployment would be triggered...")
+
 
 @cli.group()
 def dev():
     """Development environment commands."""
     pass
 
+
 @dev.command()
 def start():
     """Start development environment with Docker."""
     click.echo("🚀 Starting development environment...")
-    
+
     if os.path.exists("docker-compose.dev.yml"):
         os.system("docker-compose -f docker-compose.dev.yml up --build")
     else:
         click.echo("❌ docker-compose.dev.yml not found")
 
+
 @dev.command()
 def stop():
     """Stop development environment."""
     click.echo("🛑 Stopping development environment...")
-    
+
     if os.path.exists("docker-compose.dev.yml"):
         os.system("docker-compose -f docker-compose.dev.yml down")
     else:
         click.echo("❌ docker-compose.dev.yml not found")
+
 
 @cli.group()
 def deploy():
     """Deployment commands."""
     pass
 
+
 @deploy.command()
-@click.option('--environment', '-e', default='development', 
-              type=click.Choice(['development', 'staging', 'production']))
+@click.option(
+    "--environment",
+    "-e",
+    default="development",
+    type=click.Choice(["development", "staging", "production"]),
+)
 def k8s(environment: str):
     """Deploy to Kubernetes."""
     click.echo(f"🚀 Deploying to {environment}...")
-    
-    if environment == 'production':
+
+    if environment == "production":
         if not click.confirm("Are you sure you want to deploy to production?"):
             return
-    
+
     # TODO: Implement Kubernetes deployment
     click.echo(f"✅ Would deploy to {environment} environment")
+
 
 @cli.command()
 def init():
     """Initialize a new enterprise agents project."""
     click.echo("🏗️  Initializing OpenAI Agents Enterprise project...")
-    
+
     # Create directory structure
     directories = [
-        "agents", "mcp_servers", "config", "security", 
-        "models", "repositories", "auth", "audit", 
-        "monitoring", "tests", "docs"
+        "agents",
+        "mcp_servers",
+        "config",
+        "security",
+        "models",
+        "repositories",
+        "auth",
+        "audit",
+        "monitoring",
+        "tests",
+        "docs",
     ]
-    
+
     for directory in directories:
         Path(directory).mkdir(exist_ok=True)
         click.echo(f"📁 Created directory: {directory}")
-    
+
     # Create basic configuration files
-    config_template = '''
+    config_template = """
 # OpenAI Agents Enterprise Configuration
 ENVIRONMENT=development
 DEBUG=true
@@ -180,16 +223,19 @@ OPENAI_API_KEY=your-api-key-here
 DATABASE_URL=postgresql://user:pass@localhost:5432/agents_dev
 REDIS_URL=redis://localhost:6379
 CREDENTIAL_ENCRYPTION_KEY=change-this-in-production
-'''
-    
+"""
+
     with open(".env.example", "w") as f:
         f.write(config_template)
-    
+
     click.echo("✅ Project initialized successfully!")
     click.echo("📋 Next steps:")
     click.echo("   1. Copy .env.example to .env and configure your settings")
     click.echo("   2. Run 'agent_cli.py dev start' to start development environment")
-    click.echo("   3. Create your first agent with 'agent_cli.py agent create MyAgent'")
+    click.echo(
+        "   3. Create your first agent with 'agent_cli.py agent create " "MyAgent'"
+    )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     cli()

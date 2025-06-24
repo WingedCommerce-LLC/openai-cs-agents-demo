@@ -5,9 +5,8 @@ This module adds specific tests to cover the remaining uncovered lines
 in the security modules to reach the 90% coverage requirement.
 """
 
-import asyncio
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -96,25 +95,25 @@ class TestSecurity90Percent:
 
         # Test store_credential error by corrupting internal state
         original_dict = store._credentials
-        store._credentials = None
+        store._credentials = None  # type: ignore
         result = await store.store_credential(credential)
         assert result is False
         store._credentials = original_dict
 
         # Test retrieve_credential error
-        store._credentials = None
+        store._credentials = None  # type: ignore
         result = await store.retrieve_credential("test_id", "test_tenant")
         assert result is None
         store._credentials = original_dict
 
         # Test delete_credential error
-        store._credentials = None
+        store._credentials = None  # type: ignore
         result = await store.delete_credential("test_id", "test_tenant")
         assert result is False
         store._credentials = original_dict
 
         # Test list_credentials error
-        store._credentials = None
+        store._credentials = None  # type: ignore
         result = await store.list_credentials("test_tenant")
         assert result == []
         store._credentials = original_dict
@@ -169,7 +168,7 @@ class TestSecurity90Percent:
 
         # Expired credential
         expired_date = (datetime.utcnow() - timedelta(days=1)).isoformat()
-        expired_cred_id = await manager.store_credential(
+        await manager.store_credential(
             name="expired_cred",
             value="expired_value",
             credential_type=CredentialType.API_KEY,
@@ -179,7 +178,7 @@ class TestSecurity90Percent:
 
         # Soon expiring credential (within 7 days)
         soon_expiry = (datetime.utcnow() + timedelta(days=5)).isoformat()
-        soon_cred_id = await manager.store_credential(
+        await manager.store_credential(
             name="soon_expiring",
             value="soon_value",
             credential_type=CredentialType.API_KEY,
@@ -208,7 +207,7 @@ class TestSecurity90Percent:
         )
 
         # Credential without expiration
-        no_expiry_cred_id = await manager.store_credential(
+        await manager.store_credential(
             name="no_expiry",
             value="no_expiry_value",
             credential_type=CredentialType.API_KEY,
@@ -380,7 +379,8 @@ class TestSecurity90Percent:
         for pattern in log_patterns:
             sanitized = sanitizer.sanitize_logs(pattern)
             assert isinstance(sanitized, str)
-            # The pattern should be modified (though exact behavior depends on implementation)
+            # The pattern should be modified
+            # (though exact behavior depends on implementation)
 
     @pytest.mark.asyncio
     async def test_comprehensive_edge_cases(self):
@@ -449,7 +449,9 @@ class TestSecurity90Percent:
         # Test SecureCredential with comprehensive metadata
         secure_cred = SecureCredential(
             metadata=metadata,
-            encrypted_value="comprehensive_encrypted_data_with_special_chars_!@#$%^&*()",
+            encrypted_value=(
+                "comprehensive_encrypted_data_with_special_chars_!@#$%^&*()"
+            ),
             encryption_key_id="comprehensive_key_id_123",
         )
 

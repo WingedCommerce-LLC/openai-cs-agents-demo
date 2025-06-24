@@ -14,7 +14,7 @@
 - **Framework**: Next.js 15.2.4 - React framework with server-side rendering
 - **Language**: TypeScript - Type-safe JavaScript
 - **Styling**: Tailwind CSS 3.4.17 - Utility-first CSS framework
-- **UI Components**: 
+- **UI Components**:
   - Radix UI - Accessible component primitives
   - Lucide React - Icon library
   - Custom UI components in `ui/components/ui/`

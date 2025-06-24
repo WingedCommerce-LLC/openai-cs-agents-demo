@@ -7,12 +7,11 @@ and boost overall coverage significantly.
 
 import asyncio
 import os
-import shutil
 import sys
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, Mock, mock_open, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -54,7 +53,7 @@ class TestCoverageBoost:
                 # Test that output is generated
                 assert isinstance(result.output, str)
 
-            except Exception as e:
+            except Exception:
                 # Some scenarios might cause exceptions, which is fine for coverage
                 continue
 
@@ -65,7 +64,7 @@ class TestCoverageBoost:
                 # Try to call the callback directly
                 try:
                     agent_cli.cli.callback()
-                except:
+                except Exception:
                     # Callback might require arguments
                     pass
 
@@ -77,7 +76,7 @@ class TestCoverageBoost:
                     if hasattr(param, "name"):
                         assert isinstance(param.name, str)
                     if hasattr(param, "help"):
-                        help_text = param.help
+                        help_text = getattr(param, "help", None)
                         assert help_text is None or isinstance(help_text, str)
 
         except Exception:
@@ -86,7 +85,7 @@ class TestCoverageBoost:
 
     def test_models_edge_cases_comprehensive(self):
         """Test models with comprehensive edge cases."""
-        from models.base import Base, SoftDeleteMixin, TimestampMixin
+        from models.base import Base
 
         # Test Base model with various scenarios
         class TestModel(Base):
@@ -255,10 +254,8 @@ class TestCoverageBoost:
         """Test credential manager comprehensively with async operations."""
         from security.credential_manager import (
             CredentialManager,
-            CredentialMetadata,
             CredentialType,
             InMemoryCredentialStore,
-            SecureCredential,
             SecureCredentialInjector,
         )
 
@@ -492,8 +489,8 @@ if __name__ == '__main__':
 
             try:
                 # Test importing and using the temporary modules
-                import api as temp_api
-                import main as temp_main
+                import api as temp_api  # type: ignore
+                import main as temp_main  # type: ignore
 
                 # Test api module functions
                 config = temp_api.get_config()
@@ -537,7 +534,7 @@ if __name__ == '__main__':
                     assert server_config["port"] == 9000
                     assert server_config["host"] == "127.0.0.1"
 
-            except Exception as e:
+            except Exception:
                 # Import might fail, but we tested the approach
                 pass
             finally:
@@ -620,10 +617,14 @@ if __name__ == '__main__':
         assert 9 in square_set
 
         # Test lambda functions
-        add_one = lambda x: x + 1
+        def add_one(x):
+            return x + 1
+
         assert add_one(5) == 6
 
-        multiply = lambda x, y: x * y
+        def multiply(x, y):
+            return x * y
+
         assert multiply(3, 4) == 12
 
         # Test map, filter, reduce
@@ -631,7 +632,10 @@ if __name__ == '__main__':
         assert len(mapped) == 10
         assert mapped[0] == 1
 
-        filtered = list(filter(lambda x: x % 2 == 0, test_data))
+        def is_even(x):
+            return x % 2 == 0
+
+        filtered = list(filter(is_even, test_data))
         assert len(filtered) == 5
 
         from functools import reduce

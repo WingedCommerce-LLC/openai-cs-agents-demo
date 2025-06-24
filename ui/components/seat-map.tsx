@@ -137,4 +137,4 @@ export function SeatMap({ onSeatSelect, selectedSeat }: SeatMapProps) {
             </CardContent>
         </Card>
     );
-} 
+}

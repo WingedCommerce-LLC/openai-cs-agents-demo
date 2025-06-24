@@ -4,11 +4,11 @@ Exact test to reach 85% coverage by covering the remaining 7 statements.
 This test targets the specific uncovered lines:
 - models/base.py:95 (BaseModel = Base)
 - security/env_sanitizer.py:78-91 (error handling in sanitize_dict_for_logging)
-- security/credential_manager.py:78-80, 87-89, 98-100, 109-111, 172, 181-183 (error paths)
+- security/credential_manager.py:78-80, 87-89, 98-100, 109-111, 172, 181-183
+  (error paths)
 """
 
-import asyncio
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
 import pytest
 

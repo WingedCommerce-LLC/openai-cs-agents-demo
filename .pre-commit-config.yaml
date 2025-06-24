@@ -34,10 +34,6 @@ repos:
     rev: 6.0.0
     hooks:
       - id: flake8
-        args: [
-          "--max-line-length=88",
-          "--extend-ignore=E203,W503"
-        ]
         files: ^(security|models|repositories|auth|audit|monitoring|mcp|cli|tests)/.*\.py$
 
   # Python security scanning

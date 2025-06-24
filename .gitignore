@@ -471,3 +471,7 @@ local-config/
 # CUSTOM PROJECT IGNORES
 # =============================================================================
 # Add any project-specific ignores below this line
+
+# Allow specific credential-related test files (override wildcard)
+!tests/unit/test_zero_credential_leakage.py
+!auth/zero_credential_leakage.py
