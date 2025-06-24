@@ -55,7 +55,7 @@ repos:
       - id: python-unit-tests
         name: Python Unit Tests (85% coverage required)
         entry: bash
-        args: ["-c", "cd python-backend && python -m pytest tests/unit/ --cov=. --cov-report=term-missing --cov-fail-under=85 || exit 1"]
+        args: ["-c", "source .venv/bin/activate && python -m pytest tests/unit/ --cov=. --cov-report=term-missing --cov-fail-under=85 || exit 1"]
         language: system
         files: ^(security|models|repositories|auth|audit|monitoring|mcp|cli|tests/unit)/.*\.py$
         pass_filenames: false
@@ -64,7 +64,7 @@ repos:
       - id: security-tests
         name: Security Module Tests (90% coverage required)
         entry: bash
-        args: ["-c", "cd python-backend && python -m pytest tests/unit/security/ --cov=security --cov-report=term-missing --cov-fail-under=90 || exit 1"]
+        args: ["-c", "source .venv/bin/activate && python -m pytest tests/unit/security/ --cov=security --cov-report=term-missing --cov-fail-under=90 || exit 1"]
         language: system
         files: ^(security|tests/.*security)/.*\.py$
         pass_filenames: false
@@ -79,6 +79,6 @@ repos:
         pass_filenames: false
 
 # Global configuration
-default_stages: [commit]
+default_stages: [pre-commit]
 fail_fast: false
 minimum_pre_commit_version: "3.0.0"
