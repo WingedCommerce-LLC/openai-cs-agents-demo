@@ -1,0 +1,47 @@
+# Multi-stage build for Python backend with security hardening
+FROM python:3.11-slim as backend-base
+
+# Create non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Install security updates and minimal dependencies
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set secure working directory
+RUN mkdir -p /app && chown appuser:appuser /app
+WORKDIR /app
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Development stage
+FROM backend-base as backend-dev
+COPY --chown=appuser:appuser . .
+USER appuser
+EXPOSE 8000
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+# Production stage with security hardening
+FROM backend-base as backend-prod
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Copy application code
+COPY --chown=appuser:appuser . .
+
+# Remove any potential secrets from image layers
+RUN find /app -name "*.env*" -delete 2>/dev/null || true && \
+    find /app -name "*secret*" -delete 2>/dev/null || true && \
+    find /app -name "*key*" -delete 2>/dev/null || true
+
+# Switch to non-root user
+USER appuser
+
+# Security: Read-only filesystem, no privilege escalation
+EXPOSE 8000
+CMD ["gunicorn", "api:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]

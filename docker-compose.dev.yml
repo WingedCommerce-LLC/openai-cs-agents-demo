@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./python-backend
+      dockerfile: ../docker/Dockerfile.backend
+      target: backend-dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./python-backend:/app
+      - /app/__pycache__
+    environment:
+      - DATABASE_URL=postgresql://user:pass@db:5432/agents_dev
+      - REDIS_URL=redis://redis:6379
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - CREDENTIAL_ENCRYPTION_KEY=dev-key-change-in-production
+    depends_on:
+      - db
+      - redis
+    networks:
+      - agents-network
+
+  frontend:
+    build:
+      context: ./ui
+      dockerfile: ../docker/Dockerfile.frontend
+      target: frontend-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./ui:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - agents-network
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: agents_dev
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - agents-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - agents-network
+
+  # Optional: Development tools
+  adminer:
+    image: adminer:4-standalone
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    networks:
+      - agents-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  agents-network:
+    driver: bridge
