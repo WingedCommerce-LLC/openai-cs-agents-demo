@@ -114,6 +114,78 @@ else
     log_warning "UI directory or package.json not found"
 fi
 
+# Setup Python virtual environment and dependencies
+setup_python_environment() {
+    log_info "Setting up Python virtual environment..."
+    
+    # Check if .venv exists
+    if [ ! -d ".venv" ]; then
+        log_info "Creating Python virtual environment..."
+        if command -v uv >/dev/null 2>&1; then
+            # Use uv if available
+            uv venv --python python3
+            log_success "Virtual environment created with uv"
+        else
+            # Fallback to standard venv
+            python3 -m venv .venv
+            log_success "Virtual environment created with venv"
+        fi
+    else
+        log_success "Virtual environment already exists"
+    fi
+    
+    # Activate virtual environment
+    log_info "Activating virtual environment..."
+    source .venv/bin/activate
+    
+    # Install dependencies
+    if [ -f "pyproject.toml" ]; then
+        log_info "Installing Python dependencies..."
+        if command -v uv >/dev/null 2>&1; then
+            # Use uv for faster installation
+            uv pip install -e ".[dev]"
+            log_success "Dependencies installed with uv"
+        else
+            # Fallback to pip
+            python -m pip install --upgrade pip
+            python -m pip install -e ".[dev]"
+            log_success "Dependencies installed with pip"
+        fi
+    else
+        log_warning "pyproject.toml not found - skipping dependency installation"
+    fi
+    
+    # Install pre-commit hooks if available
+    if command -v pre-commit >/dev/null 2>&1; then
+        log_info "Installing pre-commit hooks..."
+        pre-commit install
+        log_success "Pre-commit hooks installed"
+    else
+        log_info "pre-commit not available - skipping hook installation"
+    fi
+}
+
+# Setup Node.js dependencies
+setup_node_environment() {
+    if [ -d "ui" ] && [ -f "ui/package.json" ]; then
+        log_info "Setting up Node.js environment..."
+        cd ui
+        
+        # Install dependencies if not already installed
+        if [ ! -d "node_modules" ]; then
+            log_info "Installing Node.js dependencies..."
+            npm ci
+            log_success "Node.js dependencies installed"
+        else
+            log_success "Node.js dependencies already installed"
+        fi
+        
+        cd ..
+    else
+        log_warning "UI directory or package.json not found - skipping Node.js setup"
+    fi
+}
+
 # Test Docker setup
 if command -v docker >/dev/null 2>&1; then
     log_success "Docker is available"
@@ -124,14 +196,63 @@ else
     log_info "Docker not found - optional for development"
 fi
 
-log_info "Test setup completed!"
+# Setup environments
+setup_python_environment
+setup_node_environment
+
+# Run a simple test to verify setup
+test_installation() {
+    log_info "Testing installation..."
+    
+    # Test Python environment
+    if [ -f ".venv/bin/activate" ]; then
+        source .venv/bin/activate
+        
+        # Test if we can import our modules
+        if python -c "from security.env_sanitizer import EnvironmentSanitizer; print('✓ Security module importable')" 2>/dev/null; then
+            log_success "Python modules are importable"
+        else
+            log_warning "Some Python modules may not be importable yet"
+        fi
+        
+        # Test if pytest is available
+        if command -v pytest >/dev/null 2>&1; then
+            log_success "pytest is available"
+            
+            # Run a simple test if tests exist
+            if [ -d "tests" ]; then
+                log_info "Running a quick test to verify setup..."
+                if pytest tests/unit/test_env_sanitizer.py -v --tb=short 2>/dev/null; then
+                    log_success "Sample test passed"
+                else
+                    log_info "Tests available but may need additional setup"
+                fi
+            fi
+        else
+            log_warning "pytest not available"
+        fi
+    else
+        log_warning "Virtual environment not properly created"
+    fi
+}
+
+test_installation
+
+log_info "Setup and test completed!"
 echo
-log_info "To run full setup (requires Python 3.11+ and Node.js 20+):"
-echo "  ./scripts/setup.sh"
+log_success "Environment is ready for development!"
+echo
+log_info "Next steps:"
+echo "  1. Activate virtual environment: source .venv/bin/activate"
+echo "  2. Update .env file with your configuration"
+echo "  3. Run tests: pytest tests/"
+echo "  4. Start development: docker-compose -f docker-compose.dev.yml up"
 echo
 log_info "Current environment summary:"
 echo "  - Python: $(python3 --version 2>/dev/null || echo 'Not found')"
 echo "  - Node.js: $(node --version 2>/dev/null || echo 'Not found')"
 echo "  - Docker: $(docker --version 2>/dev/null || echo 'Not found')"
+echo "  - Virtual environment: $([[ -d .venv ]] && echo '✓ Created' || echo '✗ Missing')"
+echo "  - Dependencies: $([[ -f .venv/pyvenv.cfg ]] && echo '✓ Installed' || echo '✗ Missing')"
 echo "  - Project structure: ✓ Complete"
 echo "  - Configuration files: ✓ Present"

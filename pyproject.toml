@@ -132,6 +132,9 @@ Issues = "https://github.com/openai/agents-enterprise-template/issues"
 [project.scripts]
 agents-cli = "cli.agent_cli:cli"
 
+[tool.hatch.build.targets.wheel]
+packages = ["security", "models", "repositories", "auth", "audit", "monitoring", "mcp", "cli", "tests"]
+
 [tool.black]
 line-length = 88
 target-version = ['py311']
