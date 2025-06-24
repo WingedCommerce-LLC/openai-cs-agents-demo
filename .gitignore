@@ -1,3 +1,40 @@
+# =============================================================================
+# OpenAI Agents Enterprise Template - Comprehensive .gitignore
+# =============================================================================
+
+# =============================================================================
+# SECURITY & CREDENTIALS - CRITICAL
+# =============================================================================
+# Never commit any credentials, keys, or sensitive data
+*.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+secrets/
+credentials/
+.secrets/
+.credentials/
+*secret*
+*credential*
+*password*
+*token*
+vault/
+.vault/
+
+# Kubernetes secrets (but keep templates)
+k8s/*secret*.yaml
+k8s/*credential*.yaml
+!k8s/*secret*.template.yaml
+!k8s/*credential*.template.yaml
+
+# =============================================================================
+# PYTHON
+# =============================================================================
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -14,12 +51,12 @@ dist/
 downloads/
 eggs/
 .eggs/
+lib/
 lib64/
 parts/
 sdist/
 var/
 wheels/
-pip-wheel-metadata/
 share/python-wheels/
 *.egg-info/
 .installed.cfg
@@ -27,8 +64,6 @@ share/python-wheels/
 MANIFEST
 
 # PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
 
@@ -49,6 +84,7 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+cover/
 
 # Translations
 *.mo
@@ -71,6 +107,7 @@ instance/
 docs/_build/
 
 # PyBuilder
+.pybuilder/
 target/
 
 # Jupyter Notebook
@@ -84,13 +121,15 @@ ipython_config.py
 .python-version
 
 # pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
+Pipfile.lock
 
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow
+# poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+
+# PEP 582
 __pypackages__/
 
 # Celery stuff
@@ -102,7 +141,7 @@ celerybeat.pid
 
 # Environments
 .env
-*.venv*
+.venv
 env/
 venv/
 ENV/
@@ -127,9 +166,308 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-#node modules
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# =============================================================================
+# NODE.JS / NEXT.JS
+# =============================================================================
+# Dependencies
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
 
-# ui stuff
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
 
-ui/.next/
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Grunt intermediate storage
+.grunt
+
+# Bower dependency directory
+bower_components
+
+# node-waf configuration
+.lock-wscript
+
+# Compiled binary addons
+build/Release
+
+# Dependency directories
+jspm_packages/
+
+# Snowpack dependency directory
+web_modules/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache
+.cache
+.parcel-cache
+
+# Next.js build output
+.next/
+out/
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# Storybook build outputs
+.out
+.storybook-out
+storybook-static
+
+# Temporary folders
+tmp/
+temp/
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# yarn v2
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# =============================================================================
+# DOCKER
+# =============================================================================
+# Docker build context
+.dockerignore
+docker-compose.override.yml
+docker-compose.*.local.yml
+
+# Docker volumes and data
+docker-data/
+volumes/
+.docker/
+
+# =============================================================================
+# KUBERNETES
+# =============================================================================
+# Helm
+charts/*/charts/
+charts/*/requirements.lock
+charts/*/Chart.lock
+
+# Kustomize
+kustomization.yaml.bak
+
+# Kubernetes local configs
+kubeconfig
+.kube/
+*.kubeconfig
+
+# =============================================================================
+# DATABASES
+# =============================================================================
+# PostgreSQL
+*.sql
+*.dump
+*.backup
+
+# SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# MongoDB
+*.bson
+
+# Redis
+dump.rdb
+appendonly.aof
+
+# =============================================================================
+# DEVELOPMENT TOOLS
+# =============================================================================
+# IDEs and editors
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+.idea/
+*.swp
+*.swo
+*~
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+
+# =============================================================================
+# OPERATING SYSTEMS
+# =============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.tmp
+*.temp
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# =============================================================================
+# LOGS AND MONITORING
+# =============================================================================
+# Application logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Monitoring and metrics
+metrics/
+traces/
+.prometheus/
+.grafana/
+
+# =============================================================================
+# TERRAFORM (if used for infrastructure)
+# =============================================================================
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+*.tfvars
+*.tfvars.json
+
+# =============================================================================
+# CI/CD
+# =============================================================================
+# GitHub Actions
+.github/workflows/*.local.yml
+
+# Build artifacts
+build/
+dist/
+target/
+bin/
+obj/
+
+# =============================================================================
+# TESTING
+# =============================================================================
+# Test results
+test-results/
+test-reports/
+.coverage
+coverage/
+.nyc_output/
+
+# =============================================================================
+# ENTERPRISE SPECIFIC
+# =============================================================================
+# MCP servers (generated)
+mcp_servers/*/
+!mcp_servers/.gitkeep
+
+# Generated agents
+agents/generated/
+!agents/.gitkeep
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Temporary enterprise files
+enterprise-config/
+local-config/
+.local/
+
+# =============================================================================
+# CUSTOM PROJECT IGNORES
+# =============================================================================
+# Add any project-specific ignores below this line
