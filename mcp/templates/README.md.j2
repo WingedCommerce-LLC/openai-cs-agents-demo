@@ -1,0 +1,233 @@
+# {{ config.server_name }}
+
+{{ config.server_description }}
+
+This MCP server was auto-generated from an OpenAPI specification and provides tools to interact with the {{ spec_info.title or "API" }}.
+
+## Overview
+
+- **Server Name**: {{ config.server_name }}
+- **Version**: {{ config.version }}
+- **API Version**: {{ spec_info.version or "Unknown" }}
+- **Generated Tools**: {{ endpoints | length }}
+- **Base URL**: {{ config.base_url or spec_info.base_url or "Not specified" }}
+
+## Features
+
+- ✅ **{{ endpoints | length }} API endpoints** exposed as MCP tools
+- ✅ **Type-safe** parameter validation
+- ✅ **Error handling** with retries and exponential backoff
+{% if config.include_logging %}
+- ✅ **Structured logging** with detailed request/response tracking
+{% endif %}
+{% if config.auth_type != "none" %}
+- ✅ **Authentication** support ({{ config.auth_type }})
+{% endif %}
+- ✅ **Async/await** for high performance
+- ✅ **Docker** support for easy deployment
+
+## Available Tools
+
+{% for endpoint in endpoints %}
+### `{{ generate_tool_name(endpoint) }}`
+
+**{{ endpoint.method.value }} {{ endpoint.path }}**
+
+{{ endpoint.description or endpoint.summary or "No description available" }}
+
+**Parameters:**
+{% if endpoint.parameters %}
+{% for param in endpoint.parameters %}
+- `{{ param.name }}` ({{ param.type }}{% if param.required %}, required{% endif %}): {{ param.description or "No description" }}
+{% endfor %}
+{% else %}
+- No parameters
+{% endif %}
+
+{% if endpoint.request_body %}
+**Request Body:**
+- `request_data` ({{ endpoint.request_body.content_type }}{% if endpoint.request_body.required %}, required{% endif %}): {{ endpoint.request_body.description or "Request body data" }}
+{% endif %}
+
+**Complexity Score:** {{ endpoint.complexity_score }}/10
+
+---
+
+{% endfor %}
+
+## Installation
+
+### Prerequisites
+
+- Python 3.11 or higher
+- pip package manager
+
+### Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### Environment Configuration
+
+Copy the example environment file and configure your settings:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your configuration:
+
+```bash
+# API Configuration
+API_BASE_URL={{ config.base_url or "https://api.example.com" }}
+API_TIMEOUT={{ config.timeout }}
+{% if config.auth_type != "none" %}
+
+# Authentication
+{{ config.auth_header.upper().replace('-', '_') }}_TOKEN=your_token_here
+{% endif %}
+
+# Logging
+LOG_LEVEL=INFO
+```
+
+## Usage
+
+### Running the Server
+
+```bash
+python {{ config.package_name }}/server.py
+```
+
+The server will start and listen for MCP protocol messages on stdin/stdout.
+
+### Using with Claude Desktop
+
+Add this server to your Claude Desktop configuration:
+
+```json
+{
+  "mcpServers": {
+    "{{ config.server_name | snake_case }}": {
+      "command": "python",
+      "args": ["/path/to/{{ config.package_name }}/server.py"],
+      "env": {
+        "API_BASE_URL": "{{ config.base_url or 'https://api.example.com' }}",
+        {% if config.auth_type != "none" %}
+        "{{ config.auth_header.upper().replace('-', '_') }}_TOKEN": "your_token_here"
+        {% endif %}
+      }
+    }
+  }
+}
+```
+
+### Docker Usage
+
+Build the Docker image:
+
+```bash
+docker build -t {{ config.server_name | snake_case }} .
+```
+
+Run the container:
+
+```bash
+docker run -it \
+  -e API_BASE_URL="{{ config.base_url or 'https://api.example.com' }}" \
+  {% if config.auth_type != "none" %}
+  -e {{ config.auth_header.upper().replace('-', '_') }}_TOKEN="your_token_here" \
+  {% endif %}
+  {{ config.server_name | snake_case }}
+```
+
+## API Specification Details
+
+- **Title**: {{ spec_info.title or "Unknown" }}
+- **Version**: {{ spec_info.version or "Unknown" }}
+- **OpenAPI Version**: {{ spec_info.openapi_version or "Unknown" }}
+{% if spec_info.description %}
+- **Description**: {{ spec_info.description }}
+{% endif %}
+
+### Endpoint Complexity Distribution
+
+{% set complexity_dist = generation_summary.complexity_distribution %}
+- **Simple (1-3)**: {{ complexity_dist.simple or 0 }} endpoints
+- **Moderate (4-6)**: {{ complexity_dist.moderate or 0 }} endpoints
+- **Complex (7-8)**: {{ complexity_dist.complex or 0 }} endpoints
+- **Very Complex (9-10)**: {{ complexity_dist.very_complex or 0 }} endpoints
+
+### Security
+
+{% if spec_info.security_schemes %}
+This API supports the following authentication methods:
+{% for scheme_name, scheme in spec_info.security_schemes.items() %}
+- **{{ scheme_name }}**: {{ scheme.type or "Unknown" }}
+{% endfor %}
+{% else %}
+No authentication schemes detected in the OpenAPI specification.
+{% endif %}
+
+## Development
+
+### Running Tests
+
+```bash
+python -m pytest tests/
+```
+
+### Code Quality
+
+This server includes:
+
+- Type hints throughout the codebase
+- Comprehensive error handling
+- Input validation for all parameters
+- Structured logging for debugging
+- Retry logic with exponential backoff
+
+### Customization
+
+To customize this server:
+
+1. **Modify endpoint selection**: Edit the generation configuration to include/exclude specific endpoints
+2. **Add custom validation**: Extend the parameter validation logic in the generated tools
+3. **Enhance error handling**: Add custom error handling for specific API responses
+4. **Add caching**: Implement response caching for frequently accessed endpoints
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Authentication errors**: Verify your API token is correctly set in the environment
+2. **Connection timeouts**: Increase the `API_TIMEOUT` value for slow APIs
+3. **Rate limiting**: The server includes retry logic, but you may need to implement additional rate limiting
+
+### Debugging
+
+Enable debug logging by setting:
+
+```bash
+LOG_LEVEL=DEBUG
+```
+
+This will provide detailed information about:
+- API requests and responses
+- Parameter validation
+- Error conditions
+- Retry attempts
+
+## Support
+
+This server was auto-generated on {{ "now" | strftime("%Y-%m-%d %H:%M:%S") }}.
+
+For issues with the generated server, check:
+1. Your API credentials and configuration
+2. The OpenAPI specification accuracy
+3. Network connectivity to the API
+
+## License
+
+Generated code is provided as-is. Please refer to your API provider's terms of service for usage restrictions.

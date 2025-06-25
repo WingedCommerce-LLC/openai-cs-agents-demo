@@ -1,0 +1,241 @@
+#!/usr/bin/env python3
+"""
+Tests for {{ config.server_name }}
+"""
+
+import asyncio
+import json
+import pytest
+from unittest.mock import AsyncMock, patch, MagicMock
+
+# Import the generated server components
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from {{ config.package_name }}.server import (
+    APIClient,
+    ServerConfig,
+    load_config,
+    {% for endpoint in endpoints %}
+    {{ generate_tool_name(endpoint) }},
+    {% endfor %}
+)
+
+
+class TestServerConfig:
+    """Test server configuration."""
+
+    def test_default_config(self):
+        """Test default configuration values."""
+        config = ServerConfig()
+        assert config.base_url == "{{ config.base_url or 'https://api.example.com' }}"
+        assert config.timeout == {{ config.timeout }}
+        assert config.max_retries == 3
+
+    def test_config_from_env(self):
+        """Test configuration loading from environment."""
+        with patch.dict(os.environ, {
+            "API_BASE_URL": "https://test.example.com",
+            "API_TIMEOUT": "60",
+            {% if config.auth_type != "none" %}
+            "{{ config.auth_header.upper().replace('-', '_') }}_TOKEN": "test_token",
+            {% endif %}
+            "MAX_RETRIES": "5",
+        }):
+            config = load_config()
+            assert config.base_url == "https://test.example.com"
+            assert config.timeout == 60
+            {% if config.auth_type != "none" %}
+            assert config.auth_token == "test_token"
+            {% endif %}
+            assert config.max_retries == 5
+
+
+class TestAPIClient:
+    """Test API client functionality."""
+
+    @pytest.fixture
+    def config(self):
+        """Test configuration."""
+        return ServerConfig(
+            base_url="https://test.example.com",
+            timeout=30,
+            {% if config.auth_type != "none" %}
+            auth_token="test_token",
+            {% endif %}
+            max_retries=2,
+        )
+
+    @pytest.fixture
+    def api_client(self, config):
+        """Test API client."""
+        return APIClient(config)
+
+    @pytest.mark.asyncio
+    async def test_successful_request(self, api_client):
+        """Test successful API request."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"status": "success", "data": "test"}
+        mock_response.content = b'{"status": "success", "data": "test"}'
+        mock_response.raise_for_status.return_value = None
+
+        with patch.object(api_client.client, 'request', return_value=mock_response) as mock_request:
+            result = await api_client.request("GET", "/test")
+
+            assert result == {"status": "success", "data": "test"}
+            mock_request.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_request_with_retry(self, api_client):
+        """Test request retry logic."""
+        # First call fails, second succeeds
+        mock_response_fail = MagicMock()
+        mock_response_fail.raise_for_status.side_effect = Exception("Network error")
+
+        mock_response_success = MagicMock()
+        mock_response_success.status_code = 200
+        mock_response_success.json.return_value = {"status": "success"}
+        mock_response_success.content = b'{"status": "success"}'
+        mock_response_success.raise_for_status.return_value = None
+
+        with patch.object(api_client.client, 'request', side_effect=[mock_response_fail, mock_response_success]):
+            with patch('asyncio.sleep'):  # Mock sleep to speed up test
+                result = await api_client.request("GET", "/test")
+
+                assert result == {"status": "success"}
+
+    @pytest.mark.asyncio
+    async def test_request_max_retries_exceeded(self, api_client):
+        """Test request failure after max retries."""
+        mock_response = MagicMock()
+        mock_response.raise_for_status.side_effect = Exception("Persistent error")
+
+        with patch.object(api_client.client, 'request', return_value=mock_response):
+            with patch('asyncio.sleep'):  # Mock sleep to speed up test
+                with pytest.raises(Exception, match="Request failed after"):
+                    await api_client.request("GET", "/test")
+
+    @pytest.mark.asyncio
+    async def test_client_close(self, api_client):
+        """Test client cleanup."""
+        with patch.object(api_client.client, 'aclose') as mock_close:
+            await api_client.close()
+            mock_close.assert_called_once()
+
+
+{% for endpoint in endpoints %}
+class Test{{ generate_tool_name(endpoint) | title }}:
+    """Test {{ generate_tool_name(endpoint) }} tool."""
+
+    @pytest.mark.asyncio
+    async def test_{{ generate_tool_name(endpoint) }}_success(self):
+        """Test successful {{ generate_tool_name(endpoint) }} execution."""
+        mock_response = {"status": "success", "data": "test_data"}
+
+        with patch('{{ config.package_name }}.server.api_client.request', return_value=mock_response) as mock_request:
+            result = await {{ generate_tool_name(endpoint) }}(
+                {% for param in endpoint.parameters %}
+                {% if param.required %}
+                {{ param.name }}="test_{{ param.name }}",
+                {% endif %}
+                {% endfor %}
+                {% if endpoint.request_body %}
+                request_data={"test": "data"},
+                {% endif %}
+            )
+
+            assert len(result) == 1
+            assert result[0].type == "text"
+            assert "success" in result[0].text
+
+            # Verify the API call was made correctly
+            mock_request.assert_called_once()
+            call_args = mock_request.call_args
+            assert call_args[1]["method"] == "{{ endpoint.method.value }}"
+
+    @pytest.mark.asyncio
+    async def test_{{ generate_tool_name(endpoint) }}_error(self):
+        """Test {{ generate_tool_name(endpoint) }} error handling."""
+        with patch('{{ config.package_name }}.server.api_client.request', side_effect=Exception("API Error")):
+            result = await {{ generate_tool_name(endpoint) }}(
+                {% for param in endpoint.parameters %}
+                {% if param.required %}
+                {{ param.name }}="test_{{ param.name }}",
+                {% endif %}
+                {% endfor %}
+                {% if endpoint.request_body %}
+                request_data={"test": "data"},
+                {% endif %}
+            )
+
+            assert len(result) == 1
+            assert result[0].type == "text"
+            assert "Error executing" in result[0].text
+
+    {% if config.include_validation %}
+    {% for param in endpoint.parameters %}
+    {% if param.required %}
+    @pytest.mark.asyncio
+    async def test_{{ generate_tool_name(endpoint) }}_missing_{{ param.name }}(self):
+        """Test {{ generate_tool_name(endpoint) }} with missing required parameter {{ param.name }}."""
+        with pytest.raises(ValueError, match="Parameter '{{ param.name }}' is required"):
+            await {{ generate_tool_name(endpoint) }}(
+                {% for other_param in endpoint.parameters %}
+                {% if other_param.required and other_param.name != param.name %}
+                {{ other_param.name }}="test_{{ other_param.name }}",
+                {% endif %}
+                {% endfor %}
+                {% if endpoint.request_body %}
+                request_data={"test": "data"},
+                {% endif %}
+            )
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+
+{% endfor %}
+
+class TestIntegration:
+    """Integration tests."""
+
+    @pytest.mark.asyncio
+    async def test_server_tools_list(self):
+        """Test that all tools are properly registered."""
+        from {{ config.package_name }}.server import list_tools
+
+        tools = await list_tools()
+
+        # Should have {{ endpoints | length }} tools
+        assert len(tools) == {{ endpoints | length }}
+
+        # Check tool names
+        expected_tools = [
+            {% for endpoint in endpoints %}
+            "{{ generate_tool_name(endpoint) }}",
+            {% endfor %}
+        ]
+
+        actual_tools = [tool.name for tool in tools]
+        assert set(actual_tools) == set(expected_tools)
+
+        # Check that all tools have proper schemas
+        for tool in tools:
+            assert tool.name
+            assert tool.description
+            assert tool.inputSchema
+            assert tool.inputSchema["type"] == "object"
+            assert "properties" in tool.inputSchema
+
+
+@pytest.fixture(scope="session")
+def event_loop():
+    """Create an instance of the default event loop for the test session."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

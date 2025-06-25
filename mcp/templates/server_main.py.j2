@@ -1,0 +1,349 @@
+#!/usr/bin/env python3
+"""
+{{ config.server_name }} - MCP Server
+{{ config.server_description }}
+
+Auto-generated from OpenAPI specification
+Generated on: {{ "now" | strftime("%Y-%m-%d %H:%M:%S") }}
+"""
+
+import asyncio
+import json
+import logging
+import os
+from typing import Any, Dict, List, Optional, Union
+
+import httpx
+from mcp.server import Server
+from mcp.server.models import InitializationOptions
+from mcp.server.stdio import stdio_server
+from mcp.types import (
+    CallToolRequest,
+    CallToolResult,
+    ListToolsRequest,
+    ListToolsResult,
+    Tool,
+    TextContent,
+)
+from pydantic import BaseModel, Field
+
+# Configure logging
+{% if config.include_logging %}
+import structlog
+
+logger = structlog.get_logger(__name__)
+{% else %}
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+{% endif %}
+
+# Configuration
+class ServerConfig(BaseModel):
+    """Server configuration."""
+
+    base_url: str = Field(
+        default="{{ config.base_url or 'https://api.example.com' }}",
+        description="Base URL for the API"
+    )
+    timeout: int = Field(
+        default={{ config.timeout }},
+        description="Request timeout in seconds"
+    )
+    {% if config.auth_type != "none" %}
+    auth_token: Optional[str] = Field(
+        default=None,
+        description="Authentication token"
+    )
+    {% endif %}
+    max_retries: int = Field(
+        default=3,
+        description="Maximum number of retries for failed requests"
+    )
+
+# Load configuration from environment
+def load_config() -> ServerConfig:
+    """Load configuration from environment variables."""
+    config_data = {
+        "base_url": os.getenv("API_BASE_URL", "{{ config.base_url or 'https://api.example.com' }}"),
+        "timeout": int(os.getenv("API_TIMEOUT", "{{ config.timeout }}")),
+        {% if config.auth_type != "none" %}
+        "auth_token": os.getenv("{{ config.auth_header.upper().replace('-', '_') }}_TOKEN"),
+        {% endif %}
+        "max_retries": int(os.getenv("MAX_RETRIES", "3")),
+    }
+    return ServerConfig(**config_data)
+
+CONFIG = load_config()
+
+# HTTP Client
+class APIClient:
+    """HTTP client for API requests."""
+
+    def __init__(self, config: ServerConfig):
+        self.config = config
+        self.client = httpx.AsyncClient(
+            base_url=config.base_url,
+            timeout=config.timeout,
+            {% if config.auth_type == "bearer" %}
+            headers={"Authorization": f"Bearer {config.auth_token}"} if config.auth_token else {},
+            {% elif config.auth_type == "api_key" %}
+            headers={"{{ config.auth_header }}": config.auth_token} if config.auth_token else {},
+            {% endif %}
+        )
+
+    async def request(
+        self,
+        method: str,
+        path: str,
+        params: Optional[Dict[str, Any]] = None,
+        data: Optional[Union[str, Dict[str, Any]]] = None,
+        headers: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Any]:
+        """Make an HTTP request with error handling and retries."""
+        url = path if path.startswith('http') else f"{self.config.base_url.rstrip('/')}/{path.lstrip('/')}"
+
+        request_headers = {}
+        if headers:
+            request_headers.update(headers)
+
+        for attempt in range(self.config.max_retries + 1):
+            try:
+                {% if config.include_logging %}
+                logger.info("Making API request", method=method, url=url, attempt=attempt + 1)
+                {% endif %}
+
+                response = await self.client.request(
+                    method=method,
+                    url=url,
+                    params=params,
+                    json=data if isinstance(data, dict) else None,
+                    content=data if isinstance(data, str) else None,
+                    headers=request_headers,
+                )
+
+                response.raise_for_status()
+
+                {% if config.include_logging %}
+                logger.info("API request successful", status_code=response.status_code)
+                {% endif %}
+
+                if response.content:
+                    try:
+                        return response.json()
+                    except json.JSONDecodeError:
+                        return {"content": response.text}
+                else:
+                    return {"status": "success"}
+
+            except httpx.HTTPStatusError as e:
+                {% if config.include_logging %}
+                logger.error("HTTP error", status_code=e.response.status_code, error=str(e))
+                {% endif %}
+                if attempt == self.config.max_retries:
+                    raise Exception(f"HTTP {e.response.status_code}: {e.response.text}")
+                await asyncio.sleep(2 ** attempt)  # Exponential backoff
+
+            except Exception as e:
+                {% if config.include_logging %}
+                logger.error("Request failed", error=str(e), attempt=attempt + 1)
+                {% endif %}
+                if attempt == self.config.max_retries:
+                    raise Exception(f"Request failed after {self.config.max_retries + 1} attempts: {str(e)}")
+                await asyncio.sleep(2 ** attempt)
+
+    async def close(self):
+        """Close the HTTP client."""
+        await self.client.aclose()
+
+# Initialize API client
+api_client = APIClient(CONFIG)
+
+# MCP Server
+server = Server("{{ config.server_name | snake_case }}")
+
+{% for endpoint in endpoints %}
+@server.call_tool()
+async def {{ generate_tool_name(endpoint) }}(
+    {% for param in endpoint.parameters %}
+    {% if param.required %}
+    {{ param.name }}: {{ param.type | python_type }},
+    {% else %}
+    {{ param.name }}: Optional[{{ param.type | python_type }}] = None,
+    {% endif %}
+    {% endfor %}
+    {% if endpoint.request_body %}
+    request_data: Optional[Dict[str, Any]] = None,
+    {% endif %}
+) -> List[TextContent]:
+    """
+    {{ endpoint.mcp_description or endpoint.summary or (endpoint.method + " " + endpoint.path) }}
+
+    {% if endpoint.description %}
+    {{ endpoint.description }}
+    {% endif %}
+
+    Parameters:
+    {% for param in endpoint.parameters %}
+    - {{ param.name }} ({{ param.type }}{% if param.required %}, required{% endif %}): {{ param.description }}
+    {% endfor %}
+    {% if endpoint.request_body %}
+    - request_data (dict, optional): Request body data
+    {% endif %}
+    """
+    try:
+        {% if config.include_validation %}
+        # Parameter validation
+        {% for param in endpoint.parameters %}
+        {% if param.required %}
+        if {{ param.name }} is None:
+            raise ValueError("Parameter '{{ param.name }}' is required")
+        {% endif %}
+        {% if param.enum_values %}
+        if {{ param.name }} is not None and {{ param.name }} not in {{ param.enum_values }}:
+            raise ValueError(f"Parameter '{{ param.name }}' must be one of: {{ param.enum_values }}")
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+
+        # Prepare request parameters
+        params = {}
+        {% for param in endpoint.parameters %}
+        {% if param.location.value == "query" %}
+        if {{ param.name }} is not None:
+            params["{{ param.name }}"] = {{ param.name }}
+        {% endif %}
+        {% endfor %}
+
+        # Prepare path with path parameters
+        path = "{{ endpoint.path }}"
+        {% for param in endpoint.parameters %}
+        {% if param.location.value == "path" %}
+        if {{ param.name }} is not None:
+            path = path.replace("{{{ param.name }}}", str({{ param.name }}))
+        {% endif %}
+        {% endfor %}
+
+        # Prepare headers
+        headers = {}
+        {% for param in endpoint.parameters %}
+        {% if param.location.value == "header" %}
+        if {{ param.name }} is not None:
+            headers["{{ param.name }}"] = str({{ param.name }})
+        {% endif %}
+        {% endfor %}
+
+        # Prepare request body
+        {% if endpoint.request_body %}
+        data = None
+        if request_data is not None:
+            {% if endpoint.request_body.content_type == "application/json" %}
+            data = request_data
+            {% else %}
+            data = str(request_data)
+            {% endif %}
+        {% else %}
+        data = None
+        {% endif %}
+
+        # Make the API request
+        response = await api_client.request(
+            method="{{ endpoint.method.value }}",
+            path=path,
+            params=params if params else None,
+            data=data,
+            headers=headers if headers else None,
+        )
+
+        # Format response
+        if isinstance(response, dict):
+            result = json.dumps(response, indent=2)
+        else:
+            result = str(response)
+
+        return [TextContent(type="text", text=result)]
+
+    except Exception as e:
+        {% if config.include_logging %}
+        logger.error("Tool execution failed", tool="{{ generate_tool_name(endpoint) }}", error=str(e))
+        {% endif %}
+        error_msg = f"Error executing {{ generate_tool_name(endpoint) }}: {str(e)}"
+        return [TextContent(type="text", text=error_msg)]
+
+{% endfor %}
+
+@server.list_tools()
+async def list_tools() -> List[Tool]:
+    """List available tools."""
+    return [
+        {% for endpoint in endpoints %}
+        Tool(
+            name="{{ generate_tool_name(endpoint) }}",
+            description="{{ endpoint.mcp_description or endpoint.summary or (endpoint.method + ' ' + endpoint.path) }}",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    {% for param in endpoint.parameters %}
+                    "{{ param.name }}": {
+                        "type": "{{ param.type }}",
+                        "description": "{{ param.description }}",
+                        {% if param.required %}
+                        "required": True,
+                        {% endif %}
+                        {% if param.enum_values %}
+                        "enum": {{ param.enum_values | tojson }},
+                        {% endif %}
+                        {% if param.default_value is not none %}
+                        "default": {{ param.default_value | tojson }},
+                        {% endif %}
+                    },
+                    {% endfor %}
+                    {% if endpoint.request_body %}
+                    "request_data": {
+                        "type": "object",
+                        "description": "{{ endpoint.request_body.description or 'Request body data' }}",
+                        {% if endpoint.request_body.required %}
+                        "required": True,
+                        {% endif %}
+                    },
+                    {% endif %}
+                },
+                "required": [
+                    {% for param in endpoint.parameters %}
+                    {% if param.required %}
+                    "{{ param.name }}",
+                    {% endif %}
+                    {% endfor %}
+                    {% if endpoint.request_body and endpoint.request_body.required %}
+                    "request_data",
+                    {% endif %}
+                ],
+            },
+        ),
+        {% endfor %}
+    ]
+
+async def main():
+    """Main server entry point."""
+    {% if config.include_logging %}
+    logger.info("Starting {{ config.server_name }}")
+    {% endif %}
+
+    try:
+        async with stdio_server() as (read_stream, write_stream):
+            await server.run(
+                read_stream,
+                write_stream,
+                InitializationOptions(
+                    server_name="{{ config.server_name }}",
+                    server_version="{{ config.version }}",
+                    capabilities=server.get_capabilities(
+                        notification_options=None,
+                        experimental_capabilities={},
+                    ),
+                ),
+            )
+    finally:
+        await api_client.close()
+
+if __name__ == "__main__":
+    asyncio.run(main())
