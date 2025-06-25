@@ -4,7 +4,7 @@
 {{ config.server_description }}
 
 Auto-generated from OpenAPI specification
-Generated on: {{ "now" | strftime("%Y-%m-%d %H:%M:%S") }}
+Generated automatically by MCP Server Generator
 """
 
 import asyncio
@@ -285,26 +285,18 @@ async def list_tools() -> List[Tool]:
                     {% for param in endpoint.parameters %}
                     "{{ param.name }}": {
                         "type": "{{ param.type }}",
-                        "description": "{{ param.description }}",
-                        {% if param.required %}
-                        "required": True,
-                        {% endif %}
-                        {% if param.enum_values %}
-                        "enum": {{ param.enum_values | tojson }},
-                        {% endif %}
-                        {% if param.default_value is not none %}
-                        "default": {{ param.default_value | tojson }},
-                        {% endif %}
-                    },
+                        "description": "{{ param.description }}"{% if param.required %},
+                        "required": True{% endif %}{% if param.enum_values %},
+                        "enum": {{ param.enum_values | tojson }}{% endif %}{% if param.default_value is not none %},
+                        "default": {{ param.default_value | tojson }}{% endif %}
+                    }{% if not loop.last or endpoint.request_body %},{% endif %}
                     {% endfor %}
                     {% if endpoint.request_body %}
                     "request_data": {
                         "type": "object",
-                        "description": "{{ endpoint.request_body.description or 'Request body data' }}",
-                        {% if endpoint.request_body.required %}
-                        "required": True,
-                        {% endif %}
-                    },
+                        "description": "{{ endpoint.request_body.description or 'Request body data' }}"{% if endpoint.request_body.required %},
+                        "required": True{% endif %}
+                    }
                     {% endif %}
                 },
                 "required": [
