@@ -219,7 +219,7 @@ async def {{ generate_tool_name(endpoint) }}(
         {% for param in endpoint.parameters %}
         {% if param.location.value == "path" %}
         if {{ param.name }} is not None:
-            path = path.replace("{{{ param.name }}}", str({{ param.name }}))
+            path = path.replace("{{ '{' + param.name + '}' }}", str({{ param.name }}))
         {% endif %}
         {% endfor %}
 
@@ -289,9 +289,9 @@ async def list_tools() -> List[Tool]:
                         "required": True{% endif %}{% if param.enum_values %},
                         "enum": {{ param.enum_values | tojson }}{% endif %}{% if param.default_value is not none %},
                         "default": {{ param.default_value | tojson }}{% endif %}
-                    }{% if not loop.last or endpoint.request_body %},{% endif %}
+                    }{% if not loop.last %},{% endif %}
                     {% endfor %}
-                    {% if endpoint.request_body %}
+                    {% if endpoint.request_body %}{% if endpoint.parameters %},{% endif %}
                     "request_data": {
                         "type": "object",
                         "description": "{{ endpoint.request_body.description or 'Request body data' }}"{% if endpoint.request_body.required %},
@@ -300,14 +300,16 @@ async def list_tools() -> List[Tool]:
                     {% endif %}
                 },
                 "required": [
-                    {% for param in endpoint.parameters %}
-                    {% if param.required %}
-                    "{{ param.name }}",
-                    {% endif %}
-                    {% endfor %}
-                    {% if endpoint.request_body and endpoint.request_body.required %}
-                    "request_data",
-                    {% endif %}
+                    {%- set required_params = [] -%}
+                    {%- for param in endpoint.parameters -%}
+                        {%- if param.required -%}
+                            {%- set _ = required_params.append('"' + param.name + '"') -%}
+                        {%- endif -%}
+                    {%- endfor -%}
+                    {%- if endpoint.request_body and endpoint.request_body.required -%}
+                        {%- set _ = required_params.append('"request_data"') -%}
+                    {%- endif -%}
+                    {{ required_params | join(', ') }}
                 ],
             },
         ),

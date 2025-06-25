@@ -252,7 +252,8 @@ class MCPServerRegistry:
 
         if server_info.status != ServerStatus.GENERATED:
             raise ValueError(
-                f"Server '{server_id}' is not ready to start (status: {server_info.status})"
+                f"Server '{server_id}' is not ready to start "
+                f"(status: {server_info.status})"
             )
 
         if server_id in self.processes:

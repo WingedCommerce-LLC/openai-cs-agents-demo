@@ -217,8 +217,8 @@ class MCPServerGenerator:
                 "estimated_tokens": sum(
                     ep.estimated_tokens for ep in selected_endpoints
                 ),
-                "complexity_distribution": self._calculate_selected_complexity_distribution(
-                    selected_endpoints
+                "complexity_distribution": (
+                    self._calculate_selected_complexity_distribution(selected_endpoints)
                 ),
             }
 
@@ -283,7 +283,8 @@ class MCPServerGenerator:
         selected = candidates[: config.max_endpoints]
 
         logger.info(
-            f"Selected {len(selected)} endpoints out of {len(analysis_result.endpoints)} available"
+            f"Selected {len(selected)} endpoints out of "
+            f"{len(analysis_result.endpoints)} available"
         )
         return selected
 
@@ -407,7 +408,10 @@ class MCPServerGenerator:
         files.append(
             GeneratedFile(
                 path="tests/conftest.py",
-                content=f"# Test configuration\nTEST_CONFIG = {json.dumps(test_config, indent=2)}\n",
+                content=(
+                    f"# Test configuration\n"
+                    f"TEST_CONFIG = {json.dumps(test_config, indent=2)}\n"
+                ),
                 description="Test configuration",
                 file_type="python",
             )
@@ -422,7 +426,10 @@ class MCPServerGenerator:
         files = []
 
         # Generate __init__.py
-        init_content = f'"""MCP Server: {config.server_name}"""\n\n__version__ = "{config.version}"\n'
+        init_content = (
+            f'"""MCP Server: {config.server_name}"""\n\n'
+            f'__version__ = "{config.version}"\n'
+        )
         files.append(
             GeneratedFile(
                 path=f"{config.package_name}/__init__.py",
@@ -452,7 +459,8 @@ LOG_LEVEL=INFO
 """
 
         if config.auth_type != "none":
-            env_example += f"{config.auth_header.upper().replace('-', '_')}_TOKEN=your_token_here\n"
+            token_var = f"{config.auth_header.upper().replace('-', '_')}_TOKEN"
+            env_example += f"{token_var}=your_token_here\n"
 
         files.append(
             GeneratedFile(
@@ -552,8 +560,9 @@ LOG_LEVEL=INFO
 
         for param in endpoint.parameters:
             if param.required:
+                error_msg = f"Parameter {param.name} is required"
                 validations.append(
-                    f'if not {param.name}: raise ValueError("Parameter {param.name} is required")'
+                    f'if not {param.name}: raise ValueError("{error_msg}")'
                 )
 
         return "\n    ".join(validations)
