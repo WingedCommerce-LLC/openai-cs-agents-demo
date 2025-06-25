@@ -1,5 +1,6 @@
 openai-agents
 pydantic
+pydantic-settings
 fastapi
 uvicorn
 python-dotenv
