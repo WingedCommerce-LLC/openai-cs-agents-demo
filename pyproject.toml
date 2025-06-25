@@ -28,36 +28,29 @@ dependencies = [
     "uvicorn[standard]>=0.24.0",
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
-
     # Database
     "sqlalchemy>=2.0.0",
     "alembic>=1.13.0",
-    "asyncpg>=0.29.0",  # PostgreSQL async driver
-    "psycopg2-binary>=2.9.0",  # PostgreSQL sync driver
-
+    "asyncpg>=0.29.0", # PostgreSQL async driver
+    "psycopg2-binary>=2.9.0", # PostgreSQL sync driver
     # Redis
     "redis>=5.0.0",
     "hiredis>=2.2.0",
-
     # Security & Authentication
     "cryptography>=41.0.0",
-    "passlib[bcrypt]>=1.7.0",
+    "passlib[bcrypt]==1.7.4",
     "python-jose[cryptography]>=3.3.0",
-    "python-multipart>=0.0.6",
-
+    "python-multipart==0.0.6",
     # OpenAI & AI
     "openai>=1.3.0",
     "tiktoken>=0.5.0",
-
     # HTTP & Networking
     "httpx>=0.25.0",
     "aiohttp>=3.9.0",
-
     # Configuration & Environment
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0.0",
     "click>=8.1.0",
-
     # Monitoring & Observability
     "opentelemetry-api>=1.21.0",
     "opentelemetry-sdk>=1.21.0",
@@ -65,14 +58,14 @@ dependencies = [
     "opentelemetry-instrumentation-sqlalchemy>=0.42b0",
     "opentelemetry-instrumentation-redis>=0.42b0",
     "prometheus-client>=0.19.0",
-
     # Template Engine
     "jinja2>=3.1.0",
-
     # Utilities
     "python-slugify>=8.0.0",
-    "pendulum>=2.1.0",  # Better datetime handling
-    "structlog>=23.2.0",  # Structured logging
+    "pendulum>=2.1.0", # Better datetime handling
+    "structlog>=23.2.0", # Structured logging
+    "pyjwt==2.8.0",
+    "bcrypt==4.1.2",
 ]
 
 [project.optional-dependencies]
