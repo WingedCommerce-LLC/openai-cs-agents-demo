@@ -822,7 +822,7 @@ class TestFinalCoveragePush:
                 agent_cli.cli,
                 [
                     "mcp",
-                    "create-server",
+                    "create",
                     "TestServer",
                     "test_spec.yaml",
                     "--base-url",
@@ -839,7 +839,7 @@ class TestFinalCoveragePush:
             agent_cli.cli,
             [
                 "mcp",
-                "create-server",
+                "create",
                 "TestServer",
                 "nonexistent.yaml",
                 "--base-url",

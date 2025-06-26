@@ -172,6 +172,8 @@ class TestHealthChecker:
     @pytest.mark.asyncio
     async def test_memory_health_check_with_psutil(self):
         """Test memory health check with psutil."""
+        pytest.importorskip("psutil")
+
         checker = HealthChecker()
 
         mock_memory = MagicMock()

@@ -106,18 +106,33 @@ def mcp():
     pass
 
 
-@mcp.command()
+@mcp.command("create")
 @click.argument("server_name")
 @click.argument("openapi_spec_file")
 @click.option("--base-url", required=True, help="Base URL for the API")
 @click.option("--output-dir", "-o", default="./mcp_servers", help="Output directory")
 @click.option("--auto-deploy", is_flag=True, help="Auto-deploy after creation")
+@click.option("--max-endpoints", default=20, help="Maximum endpoints to include")
+@click.option("--max-complexity", default=8, help="Maximum complexity score")
+@click.option(
+    "--auth-type",
+    default="none",
+    type=click.Choice(["none", "bearer", "api_key"]),
+    help="Authentication type",
+)
+@click.option("--include-tests", is_flag=True, default=True, help="Include tests")
+@click.option("--include-docker", is_flag=True, default=True, help="Include Docker")
 def create_server(
     server_name: str,
     openapi_spec_file: str,
     base_url: str,
     output_dir: str,
     auto_deploy: bool,
+    max_endpoints: int,
+    max_complexity: int,
+    auth_type: str,
+    include_tests: bool,
+    include_docker: bool,
 ):
     """Create MCP server from OpenAPI specification."""
 
@@ -129,12 +144,251 @@ def create_server(
     click.echo(f"📊 Analyzing OpenAPI spec: {openapi_spec_file}")
     click.echo(f"🌐 Base URL: {base_url}")
 
-    # TODO: Implement OpenAPI analysis and MCP server generation
-    success_msg = f"✅ MCP server '{server_name}' would be created in {output_dir}"
-    click.echo(success_msg)
+    try:
+        # Import MCP components
+        from mcp.registry import MCPServerRegistry
+        from mcp.server_generator import MCPServerGenerator, ServerGenerationConfig
 
-    if auto_deploy:
-        click.echo("🚀 Auto-deployment would be triggered...")
+        # Create generation configuration
+        config = ServerGenerationConfig(
+            server_name=server_name,
+            server_description=f"MCP server for {server_name} API",
+            package_name=server_name.lower().replace(" ", "_").replace("-", "_"),
+            base_url=base_url,
+            auth_type=auth_type,
+            max_endpoints=max_endpoints,
+            max_complexity=max_complexity,
+            output_dir=output_dir,
+            create_tests=include_tests,
+            create_dockerfile=include_docker,
+        )
+
+        # Generate the server
+        generator = MCPServerGenerator()
+        result = generator.generate_server(openapi_spec_file, config)
+
+        if result.success:
+            # Write files to disk
+            server_path = generator.write_server_to_disk(result, output_dir)
+
+            click.echo(f"✅ MCP server '{server_name}' created successfully!")
+            click.echo(f"📁 Server location: {server_path}")
+            files_count = result.generation_summary["total_files"]
+            endpoints_count = result.generation_summary["selected_endpoints"]
+            click.echo(f"📊 Generated {files_count} files")
+            click.echo(f"🔧 Included {endpoints_count} endpoints")
+
+            # Display complexity distribution
+            complexity = result.generation_summary["complexity_distribution"]
+            click.echo("📈 Complexity distribution:")
+            click.echo(f"   Simple: {complexity['simple']}")
+            click.echo(f"   Moderate: {complexity['moderate']}")
+            click.echo(f"   Complex: {complexity['complex']}")
+
+            if auto_deploy:
+                click.echo("🚀 Auto-deploying server...")
+                try:
+                    import asyncio
+
+                    # Read the OpenAPI spec for registry
+                    with open(openapi_spec_file, "r") as f:
+                        openapi_spec = f.read()
+
+                    registry = MCPServerRegistry()
+                    server_id = server_name.lower().replace(" ", "_")
+
+                    # Use async method properly
+                    asyncio.run(
+                        registry.register_server(
+                            server_id=server_id,
+                            name=server_name,
+                            openapi_spec=openapi_spec,
+                            config=config,
+                            description=f"Auto-deployed {server_name} server",
+                            auto_generate=False,  # Already generated
+                        )
+                    )
+                    click.echo("✅ Server registered and deployed!")
+                except Exception as e:
+                    click.echo(f"⚠️  Server created but deployment failed: {e}")
+        else:
+            click.echo("❌ Server generation failed:")
+            for error in result.errors:
+                click.echo(f"   • {error}")
+
+    except ImportError as e:
+        click.echo(f"❌ Missing dependencies: {e}")
+        click.echo("💡 Make sure MCP components are installed")
+    except Exception as e:
+        click.echo(f"❌ Server generation failed: {e}")
+
+
+@mcp.command("list")
+def list_servers():
+    """List all registered MCP servers."""
+    try:
+        from mcp.registry import MCPServerRegistry
+
+        registry = MCPServerRegistry()
+        servers = registry.list_servers()
+
+        if not servers:
+            click.echo("📭 No MCP servers registered")
+            return
+
+        click.echo(f"📋 Found {len(servers)} MCP servers:")
+        click.echo()
+
+        for server in servers:
+            status_emoji = {
+                "created": "🆕",
+                "generating": "⚙️",
+                "generated": "✅",
+                "running": "🟢",
+                "stopped": "🔴",
+                "error": "❌",
+            }.get(server.status.value, "❓")
+
+            click.echo(f"{status_emoji} {server.name} ({server.id})")
+            click.echo(f"   Status: {server.status.value}")
+            click.echo(f"   Endpoints: {server.endpoint_count}")
+            click.echo(f"   Created: {server.created_at.strftime('%Y-%m-%d %H:%M')}")
+            if server.server_path:
+                click.echo(f"   Path: {server.server_path}")
+            click.echo()
+
+    except Exception as e:
+        click.echo(f"❌ Failed to list servers: {e}")
+
+
+@mcp.command("start")
+@click.argument("server_id")
+def start_server(server_id: str):
+    """Start a registered MCP server."""
+    try:
+        import asyncio
+
+        from mcp.registry import MCPServerRegistry
+
+        registry = MCPServerRegistry()
+
+        click.echo(f"🚀 Starting MCP server '{server_id}'...")
+        success = asyncio.run(registry.start_server(server_id))
+
+        if success:
+            click.echo(f"✅ Server '{server_id}' started successfully!")
+        else:
+            click.echo(f"❌ Failed to start server '{server_id}'")
+
+    except Exception as e:
+        click.echo(f"❌ Failed to start server: {e}")
+
+
+@mcp.command("stop")
+@click.argument("server_id")
+def stop_server(server_id: str):
+    """Stop a running MCP server."""
+    try:
+        import asyncio
+
+        from mcp.registry import MCPServerRegistry
+
+        registry = MCPServerRegistry()
+
+        click.echo(f"🛑 Stopping MCP server '{server_id}'...")
+        success = asyncio.run(registry.stop_server(server_id))
+
+        if success:
+            click.echo(f"✅ Server '{server_id}' stopped successfully!")
+        else:
+            click.echo(f"❌ Failed to stop server '{server_id}'")
+
+    except Exception as e:
+        click.echo(f"❌ Failed to stop server: {e}")
+
+
+@mcp.command("status")
+@click.argument("server_id")
+def server_status(server_id: str):
+    """Check status of a specific MCP server."""
+    try:
+        import asyncio
+
+        from mcp.registry import MCPServerRegistry
+
+        registry = MCPServerRegistry()
+
+        # Get server info
+        server = registry.get_server(server_id)
+        if not server:
+            click.echo(f"❌ Server '{server_id}' not found")
+            return
+
+        # Get health check
+        health = asyncio.run(registry.health_check(server_id))
+
+        click.echo(f"📊 Status for MCP server '{server.name}' ({server_id}):")
+        click.echo(f"   Server Status: {server.status.value}")
+        click.echo(f"   Health Status: {health.get('status', 'unknown')}")
+
+        if health.get("process_id"):
+            click.echo(f"   Process ID: {health['process_id']}")
+
+        if health.get("uptime"):
+            uptime = int(health["uptime"])
+            click.echo(f"   Uptime: {uptime} seconds")
+
+        click.echo(f"   Endpoints: {server.endpoint_count}")
+        click.echo(f"   Tools: {server.tool_count}")
+        click.echo(f"   Complexity: {server.complexity_score:.2f}")
+        click.echo(f"   Created: {server.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
+        click.echo(f"   Updated: {server.updated_at.strftime('%Y-%m-%d %H:%M:%S')}")
+
+        if server.server_path:
+            click.echo(f"   Path: {server.server_path}")
+
+    except Exception as e:
+        click.echo(f"❌ Failed to get server status: {e}")
+
+
+@mcp.command("delete")
+@click.argument("server_id")
+@click.option("--keep-files", is_flag=True, help="Keep generated files")
+def delete_server(server_id: str, keep_files: bool):
+    """Delete a registered MCP server."""
+    try:
+        import asyncio
+
+        from mcp.registry import MCPServerRegistry
+
+        registry = MCPServerRegistry()
+
+        # Get server info for confirmation
+        server = registry.get_server(server_id)
+        if not server:
+            click.echo(f"❌ Server '{server_id}' not found")
+            return
+
+        # Confirm deletion
+        if not click.confirm(f"Delete server '{server.name}' ({server_id})?"):
+            click.echo("❌ Deletion cancelled")
+            return
+
+        click.echo(f"🗑️  Deleting MCP server '{server_id}'...")
+        success = asyncio.run(
+            registry.delete_server(server_id, cleanup_files=not keep_files)
+        )
+
+        if success:
+            if keep_files:
+                click.echo(f"✅ Server '{server_id}' deleted (files preserved)")
+            else:
+                click.echo(f"✅ Server '{server_id}' deleted completely")
+        else:
+            click.echo(f"❌ Failed to delete server '{server_id}'")
+
+    except Exception as e:
+        click.echo(f"❌ Failed to delete server: {e}")
 
 
 @cli.group()
