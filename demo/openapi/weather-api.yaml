@@ -1,0 +1,366 @@
+openapi: 3.0.0
+info:
+  title: Weather Service API
+  description: Simple weather service for demo MCP server generation
+  version: 1.0.0
+  contact:
+    name: Weather API Support
+    email: support@weather-demo.com
+  license:
+    name: MIT
+
+servers:
+  - url: https://api.weather-demo.com/v1
+    description: Production server
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /weather/current:
+    get:
+      summary: Get current weather
+      description: Retrieve current weather conditions for a specified location
+      operationId: getCurrentWeather
+      tags:
+        - Weather
+      parameters:
+        - name: city
+          in: query
+          required: true
+          description: City name
+          schema:
+            type: string
+            example: 'San Francisco'
+        - name: country
+          in: query
+          required: false
+          description: Country code (ISO 3166-1 alpha-2)
+          schema:
+            type: string
+            pattern: '^[A-Z]{2}$'
+            example: 'US'
+        - name: units
+          in: query
+          required: false
+          description: Temperature units
+          schema:
+            type: string
+            enum: [metric, imperial, kelvin]
+            default: metric
+      responses:
+        '200':
+          description: Current weather data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentWeather'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /weather/forecast:
+    get:
+      summary: Get weather forecast
+      description: Retrieve weather forecast for the next few days
+      operationId: getWeatherForecast
+      tags:
+        - Weather
+      parameters:
+        - name: city
+          in: query
+          required: true
+          description: City name
+          schema:
+            type: string
+            example: 'San Francisco'
+        - name: days
+          in: query
+          required: false
+          description: Number of forecast days (1-7)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 7
+            default: 5
+        - name: units
+          in: query
+          required: false
+          description: Temperature units
+          schema:
+            type: string
+            enum: [metric, imperial, kelvin]
+            default: metric
+      responses:
+        '200':
+          description: Weather forecast data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeatherForecast'
+
+  /weather/alerts:
+    get:
+      summary: Get weather alerts
+      description: Retrieve active weather alerts for a location
+      operationId: getWeatherAlerts
+      tags:
+        - Weather
+      parameters:
+        - name: city
+          in: query
+          required: true
+          description: City name
+          schema:
+            type: string
+        - name: severity
+          in: query
+          required: false
+          description: Minimum alert severity
+          schema:
+            type: string
+            enum: [minor, moderate, severe, extreme]
+      responses:
+        '200':
+          description: Weather alerts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WeatherAlert'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    CurrentWeather:
+      type: object
+      properties:
+        location:
+          $ref: '#/components/schemas/Location'
+        current:
+          type: object
+          properties:
+            temperature:
+              type: number
+              format: float
+              example: 22.5
+            feels_like:
+              type: number
+              format: float
+              example: 24.1
+            humidity:
+              type: integer
+              minimum: 0
+              maximum: 100
+              example: 65
+            pressure:
+              type: number
+              format: float
+              example: 1013.25
+            visibility:
+              type: number
+              format: float
+              example: 10.0
+            uv_index:
+              type: number
+              format: float
+              example: 5.2
+            condition:
+              type: string
+              example: 'Partly cloudy'
+            icon:
+              type: string
+              example: 'partly-cloudy'
+            wind:
+              $ref: '#/components/schemas/Wind'
+        last_updated:
+          type: string
+          format: date-time
+          example: '2025-06-26T13:00:00Z'
+
+    WeatherForecast:
+      type: object
+      properties:
+        location:
+          $ref: '#/components/schemas/Location'
+        forecast:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+                example: '2025-06-27'
+              day:
+                type: object
+                properties:
+                  max_temp:
+                    type: number
+                    format: float
+                    example: 25.0
+                  min_temp:
+                    type: number
+                    format: float
+                    example: 18.0
+                  condition:
+                    type: string
+                    example: 'Sunny'
+                  icon:
+                    type: string
+                    example: 'sunny'
+                  humidity:
+                    type: integer
+                    example: 60
+                  wind:
+                    $ref: '#/components/schemas/Wind'
+                  chance_of_rain:
+                    type: integer
+                    minimum: 0
+                    maximum: 100
+                    example: 10
+              hourly:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    time:
+                      type: string
+                      format: time
+                      example: '14:00'
+                    temperature:
+                      type: number
+                      format: float
+                    condition:
+                      type: string
+                    chance_of_rain:
+                      type: integer
+
+    WeatherAlert:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 'ALERT-001'
+        title:
+          type: string
+          example: 'Severe Thunderstorm Warning'
+        description:
+          type: string
+          example: 'Severe thunderstorms expected with heavy rain and strong winds'
+        severity:
+          type: string
+          enum: [minor, moderate, severe, extreme]
+          example: 'severe'
+        urgency:
+          type: string
+          enum: [immediate, expected, future, past, unknown]
+          example: 'immediate'
+        areas:
+          type: array
+          items:
+            type: string
+          example: ['San Francisco County', 'Marin County']
+        effective:
+          type: string
+          format: date-time
+          example: '2025-06-26T15:00:00Z'
+        expires:
+          type: string
+          format: date-time
+          example: '2025-06-26T21:00:00Z'
+        instructions:
+          type: string
+          example: 'Seek shelter indoors and avoid travel if possible'
+
+    Location:
+      type: object
+      properties:
+        name:
+          type: string
+          example: 'San Francisco'
+        country:
+          type: string
+          example: 'United States'
+        region:
+          type: string
+          example: 'California'
+        latitude:
+          type: number
+          format: float
+          example: 37.7749
+        longitude:
+          type: number
+          format: float
+          example: -122.4194
+        timezone:
+          type: string
+          example: 'America/Los_Angeles'
+        local_time:
+          type: string
+          format: date-time
+          example: '2025-06-26T06:00:00-07:00'
+
+    Wind:
+      type: object
+      properties:
+        speed:
+          type: number
+          format: float
+          example: 15.5
+        direction:
+          type: integer
+          minimum: 0
+          maximum: 360
+          example: 270
+        direction_text:
+          type: string
+          example: 'W'
+        gust:
+          type: number
+          format: float
+          example: 22.0
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          example: 'location_not_found'
+        message:
+          type: string
+          example: 'The specified location could not be found'
+        code:
+          type: integer
+          example: 404
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Location not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+tags:
+  - name: Weather
+    description: Weather data and forecasts

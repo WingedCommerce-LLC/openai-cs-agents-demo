@@ -1,0 +1,222 @@
+{
+  "bookings": [
+    {
+      "confirmationNumber": "ABC123",
+      "flightNumber": "UA1234",
+      "passenger": {
+        "firstName": "John",
+        "lastName": "Doe",
+        "email": "john.doe@example.com",
+        "phone": "+1-555-0123"
+      },
+      "seat": "12A",
+      "status": "confirmed",
+      "departure": {
+        "airport": "SFO",
+        "city": "San Francisco",
+        "gate": "A15",
+        "time": "2025-07-15T10:30:00Z"
+      },
+      "arrival": {
+        "airport": "LAX",
+        "city": "Los Angeles",
+        "gate": "B22",
+        "time": "2025-07-15T12:45:00Z"
+      },
+      "aircraft": "boeing737",
+      "class": "economy",
+      "price": 299.99,
+      "baggage": {
+        "carry_on": 1,
+        "checked": 1
+      }
+    },
+    {
+      "confirmationNumber": "XYZ789",
+      "flightNumber": "AA5678",
+      "passenger": {
+        "firstName": "Jane",
+        "lastName": "Smith",
+        "email": "jane.smith@example.com",
+        "phone": "+1-555-0456"
+      },
+      "seat": "8C",
+      "status": "confirmed",
+      "departure": {
+        "airport": "JFK",
+        "city": "New York",
+        "gate": "C12",
+        "time": "2025-07-16T14:20:00Z"
+      },
+      "arrival": {
+        "airport": "MIA",
+        "city": "Miami",
+        "gate": "D8",
+        "time": "2025-07-16T17:35:00Z"
+      },
+      "aircraft": "airbus320",
+      "class": "business",
+      "price": 899.99,
+      "baggage": {
+        "carry_on": 2,
+        "checked": 2
+      }
+    },
+    {
+      "confirmationNumber": "LL0EZ6",
+      "flightNumber": "FLT-476",
+      "passenger": {
+        "firstName": "Demo",
+        "lastName": "User",
+        "email": "demo@example.com",
+        "phone": "+1-555-0789"
+      },
+      "seat": "15F",
+      "status": "confirmed",
+      "departure": {
+        "airport": "ORD",
+        "city": "Chicago",
+        "gate": "E5",
+        "time": "2025-07-17T09:15:00Z"
+      },
+      "arrival": {
+        "airport": "DEN",
+        "city": "Denver",
+        "gate": "F18",
+        "time": "2025-07-17T11:30:00Z"
+      },
+      "aircraft": "boeing737",
+      "class": "economy",
+      "price": 249.99,
+      "baggage": {
+        "carry_on": 1,
+        "checked": 0
+      }
+    },
+    {
+      "confirmationNumber": "DEF456",
+      "flightNumber": "DL9012",
+      "passenger": {
+        "firstName": "Alice",
+        "lastName": "Johnson",
+        "email": "alice.johnson@example.com",
+        "phone": "+1-555-0321"
+      },
+      "seat": "3A",
+      "status": "confirmed",
+      "departure": {
+        "airport": "SEA",
+        "city": "Seattle",
+        "gate": "A7",
+        "time": "2025-07-18T16:45:00Z"
+      },
+      "arrival": {
+        "airport": "LAX",
+        "city": "Los Angeles",
+        "gate": "B15",
+        "time": "2025-07-18T19:20:00Z"
+      },
+      "aircraft": "boeing737",
+      "class": "first",
+      "price": 1299.99,
+      "baggage": {
+        "carry_on": 2,
+        "checked": 3
+      }
+    },
+    {
+      "confirmationNumber": "GHI789",
+      "flightNumber": "SW3456",
+      "passenger": {
+        "firstName": "Bob",
+        "lastName": "Wilson",
+        "email": "bob.wilson@example.com",
+        "phone": "+1-555-0654"
+      },
+      "seat": "21B",
+      "status": "confirmed",
+      "departure": {
+        "airport": "DFW",
+        "city": "Dallas",
+        "gate": "C25",
+        "time": "2025-07-19T11:30:00Z"
+      },
+      "arrival": {
+        "airport": "PHX",
+        "city": "Phoenix",
+        "gate": "A12",
+        "time": "2025-07-19T13:15:00Z"
+      },
+      "aircraft": "boeing737",
+      "class": "economy",
+      "price": 189.99,
+      "baggage": {
+        "carry_on": 1,
+        "checked": 1
+      }
+    }
+  ],
+  "flights": [
+    {
+      "flightNumber": "UA1234",
+      "status": "on_time",
+      "aircraft": "boeing737",
+      "route": "SFO-LAX",
+      "scheduled_departure": "2025-07-15T10:30:00Z",
+      "actual_departure": null,
+      "scheduled_arrival": "2025-07-15T12:45:00Z",
+      "actual_arrival": null,
+      "gate_departure": "A15",
+      "gate_arrival": "B22"
+    },
+    {
+      "flightNumber": "AA5678",
+      "status": "delayed",
+      "aircraft": "airbus320",
+      "route": "JFK-MIA",
+      "scheduled_departure": "2025-07-16T14:20:00Z",
+      "actual_departure": "2025-07-16T14:45:00Z",
+      "scheduled_arrival": "2025-07-16T17:35:00Z",
+      "actual_arrival": "2025-07-16T18:00:00Z",
+      "gate_departure": "C12",
+      "gate_arrival": "D8",
+      "delay_reason": "Weather conditions"
+    },
+    {
+      "flightNumber": "FLT-476",
+      "status": "boarding",
+      "aircraft": "boeing737",
+      "route": "ORD-DEN",
+      "scheduled_departure": "2025-07-17T09:15:00Z",
+      "actual_departure": null,
+      "scheduled_arrival": "2025-07-17T11:30:00Z",
+      "actual_arrival": null,
+      "gate_departure": "E5",
+      "gate_arrival": "F18"
+    },
+    {
+      "flightNumber": "DL9012",
+      "status": "on_time",
+      "aircraft": "boeing737",
+      "route": "SEA-LAX",
+      "scheduled_departure": "2025-07-18T16:45:00Z",
+      "actual_departure": null,
+      "scheduled_arrival": "2025-07-18T19:20:00Z",
+      "actual_arrival": null,
+      "gate_departure": "A7",
+      "gate_arrival": "B15"
+    },
+    {
+      "flightNumber": "SW3456",
+      "status": "on_time",
+      "aircraft": "boeing737",
+      "route": "DFW-PHX",
+      "scheduled_departure": "2025-07-19T11:30:00Z",
+      "actual_departure": null,
+      "scheduled_arrival": "2025-07-19T13:15:00Z",
+      "actual_arrival": null,
+      "gate_departure": "C25",
+      "gate_arrival": "A12"
+    }
+  ]
+}

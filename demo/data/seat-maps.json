@@ -1,0 +1,191 @@
+{
+  "aircraft": {
+    "boeing737": {
+      "name": "Boeing 737-800",
+      "totalSeats": 160,
+      "layout": {
+        "firstClass": {
+          "rows": [1, 2, 3],
+          "seatsPerRow": 4,
+          "seatMap": ["A", "B", "", "C", "D"],
+          "features": ["Extra legroom", "Premium meal", "Priority boarding"],
+          "pitch": "38 inches"
+        },
+        "business": {
+          "rows": [4, 5, 6, 7],
+          "seatsPerRow": 6,
+          "seatMap": ["A", "B", "C", "", "D", "E", "F"],
+          "features": ["Extra legroom", "Enhanced meal", "Priority boarding"],
+          "pitch": "34 inches"
+        },
+        "economy": {
+          "rows": [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+          "seatsPerRow": 6,
+          "seatMap": ["A", "B", "C", "", "D", "E", "F"],
+          "features": ["Standard seat", "Complimentary snacks"],
+          "pitch": "31 inches"
+        },
+        "economyPlus": {
+          "rows": [5, 6, 7, 8],
+          "seatsPerRow": 6,
+          "seatMap": ["A", "B", "C", "", "D", "E", "F"],
+          "features": ["Extra legroom", "Priority boarding", "Free drinks"],
+          "pitch": "34 inches"
+        }
+      },
+      "unavailableSeats": ["1A", "1B", "8A", "12C", "15F", "23D"],
+      "exitRows": [16, 17],
+      "premiumSeats": ["5A", "5B", "5C", "5D", "5E", "5F", "6A", "6B", "6C", "6D", "6E", "6F"],
+      "windowSeats": ["A", "F"],
+      "aisleSeats": ["C", "D"],
+      "seatPricing": {
+        "first": 150.00,
+        "business": 75.00,
+        "economyPlus": 35.00,
+        "economy": 0.00,
+        "exit": 25.00,
+        "premium": 15.00
+      }
+    },
+    "airbus320": {
+      "name": "Airbus A320",
+      "totalSeats": 150,
+      "layout": {
+        "business": {
+          "rows": [1, 2, 3, 4],
+          "seatsPerRow": 4,
+          "seatMap": ["A", "B", "", "C", "D"],
+          "features": ["Lie-flat seats", "Premium meal", "Priority boarding"],
+          "pitch": "42 inches"
+        },
+        "economyPlus": {
+          "rows": [5, 6, 7, 8],
+          "seatsPerRow": 6,
+          "seatMap": ["A", "B", "C", "", "D", "E", "F"],
+          "features": ["Extra legroom", "Priority boarding", "Enhanced meal"],
+          "pitch": "34 inches"
+        },
+        "economy": {
+          "rows": [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28],
+          "seatsPerRow": 6,
+          "seatMap": ["A", "B", "C", "", "D", "E", "F"],
+          "features": ["Standard seat", "Complimentary snacks"],
+          "pitch": "30 inches"
+        }
+      },
+      "unavailableSeats": ["2A", "8C", "14B", "20F"],
+      "exitRows": [12, 13],
+      "premiumSeats": ["5A", "5B", "5C", "5D", "5E", "5F", "6A", "6B", "6C", "6D", "6E", "6F"],
+      "windowSeats": ["A", "F"],
+      "aisleSeats": ["C", "D"],
+      "seatPricing": {
+        "business": 125.00,
+        "economyPlus": 45.00,
+        "economy": 0.00,
+        "exit": 30.00,
+        "premium": 20.00
+      }
+    },
+    "boeing777": {
+      "name": "Boeing 777-300ER",
+      "totalSeats": 350,
+      "layout": {
+        "first": {
+          "rows": [1, 2],
+          "seatsPerRow": 8,
+          "seatMap": ["A", "B", "", "C", "D", "E", "F", "", "G", "H"],
+          "features": ["Private suites", "Gourmet dining", "Personal butler"],
+          "pitch": "78 inches"
+        },
+        "business": {
+          "rows": [3, 4, 5, 6, 7, 8, 9, 10],
+          "seatsPerRow": 8,
+          "seatMap": ["A", "B", "", "C", "D", "E", "F", "", "G", "H"],
+          "features": ["Lie-flat seats", "Premium dining", "Priority boarding"],
+          "pitch": "60 inches"
+        },
+        "economyPlus": {
+          "rows": [11, 12, 13, 14, 15, 16, 17, 18],
+          "seatsPerRow": 9,
+          "seatMap": ["A", "B", "C", "", "D", "E", "F", "", "G", "H", "J"],
+          "features": ["Extra legroom", "Enhanced meal", "Priority boarding"],
+          "pitch": "36 inches"
+        },
+        "economy": {
+          "rows": [19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45],
+          "seatsPerRow": 9,
+          "seatMap": ["A", "B", "C", "", "D", "E", "F", "", "G", "H", "J"],
+          "features": ["Standard seat", "Meal service", "Entertainment"],
+          "pitch": "32 inches"
+        }
+      },
+      "unavailableSeats": ["1A", "3C", "15E", "28F", "35A", "42J"],
+      "exitRows": [25, 26],
+      "premiumSeats": ["11A", "11B", "11C", "11G", "11H", "11J", "12A", "12B", "12C", "12G", "12H", "12J"],
+      "windowSeats": ["A", "J"],
+      "aisleSeats": ["C", "D", "F", "G"],
+      "seatPricing": {
+        "first": 300.00,
+        "business": 150.00,
+        "economyPlus": 60.00,
+        "economy": 0.00,
+        "exit": 40.00,
+        "premium": 25.00
+      }
+    }
+  },
+  "seatTypes": {
+    "window": {
+      "description": "Window seat with view",
+      "icon": "🪟",
+      "benefits": ["Great views", "Wall to lean against", "No aisle traffic"]
+    },
+    "aisle": {
+      "description": "Aisle seat with easy access",
+      "icon": "🚶",
+      "benefits": ["Easy bathroom access", "Quick boarding/deplaning", "Extra legroom"]
+    },
+    "middle": {
+      "description": "Middle seat",
+      "icon": "💺",
+      "benefits": ["Usually cheaper", "Two armrests"]
+    },
+    "exit": {
+      "description": "Exit row with extra legroom",
+      "icon": "🚪",
+      "benefits": ["Extra legroom", "Quick emergency exit"],
+      "restrictions": ["Must be able-bodied", "Age restrictions apply"]
+    },
+    "premium": {
+      "description": "Premium economy seat",
+      "icon": "⭐",
+      "benefits": ["Extra legroom", "Priority boarding", "Enhanced service"]
+    }
+  },
+  "amenities": {
+    "wifi": {
+      "name": "Wi-Fi",
+      "icon": "📶",
+      "available": true,
+      "pricing": "Free for premium, $8.95 for economy"
+    },
+    "entertainment": {
+      "name": "In-flight Entertainment",
+      "icon": "📺",
+      "available": true,
+      "description": "Personal screens with movies, TV, games"
+    },
+    "power": {
+      "name": "Power Outlets",
+      "icon": "🔌",
+      "available": true,
+      "description": "USB and AC power at every seat"
+    },
+    "meals": {
+      "name": "Meal Service",
+      "icon": "🍽️",
+      "available": true,
+      "description": "Complimentary meals and beverages"
+    }
+  }
+}
