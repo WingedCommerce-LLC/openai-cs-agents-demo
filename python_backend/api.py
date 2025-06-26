@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -20,16 +20,28 @@ from main import (
     triage_agent,
 )
 
-from agents import (
-    Handoff,
-    HandoffOutputItem,
-    InputGuardrailTripwireTriggered,
-    ItemHelpers,
-    MessageOutputItem,
-    Runner,
-    ToolCallItem,
-    ToolCallOutputItem,
+try:
+    from agents import (
+        Handoff,
+        HandoffOutputItem,
+        InputGuardrailTripwireTriggered,
+        ItemHelpers,
+        MessageOutputItem,
+        Runner,
+        ToolCallItem,
+        ToolCallOutputItem,
+    )
+except ImportError:
+    # Fallback for missing agents imports
+    pass
+
+# MCP Integration imports
+from mcp.registry import (
+    MCPServerInfo,
+    ServerStatus,
+    get_registry,
 )
+from mcp.server_generator import ServerGenerationConfig
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -438,3 +450,216 @@ async def chat_endpoint(req: ChatRequest):
         agents=_build_agents_list(),
         guardrails=final_guardrails,
     )
+
+
+# =========================
+# MCP Server Management Models
+# =========================
+
+
+class MCPServerCreateRequest(BaseModel):
+    name: str
+    description: str = ""
+    openapi_spec: Dict[str, Any]
+    config: ServerGenerationConfig
+
+
+class MCPServerResponse(BaseModel):
+    id: str
+    name: str
+    description: str
+    status: str
+    endpoint_count: int
+    tool_count: int
+    complexity_score: float
+    created_at: str
+    updated_at: str
+
+
+class MCPServerListResponse(BaseModel):
+    servers: List[MCPServerResponse]
+    total: int
+
+
+class MCPRegistryStatsResponse(BaseModel):
+    total_servers: int
+    status_distribution: Dict[str, int]
+    running_servers: int
+    total_endpoints: int
+    total_tools: int
+    average_complexity: float
+
+
+# =========================
+# MCP Server Management Endpoints
+# =========================
+
+
+@app.get("/mcp/servers", response_model=MCPServerListResponse)
+async def list_mcp_servers():
+    """List all registered MCP servers."""
+    try:
+        registry = get_registry()
+        servers = registry.list_servers()
+
+        server_responses = []
+        for server in servers:
+            server_responses.append(MCPServerResponse(
+                id=server.id,
+                name=server.name,
+                description=server.description,
+                status=server.status.value,
+                endpoint_count=server.endpoint_count,
+                tool_count=server.tool_count,
+                complexity_score=server.complexity_score,
+                created_at=server.created_at.isoformat(),
+                updated_at=server.updated_at.isoformat(),
+            ))
+
+        return MCPServerListResponse(
+            servers=server_responses,
+            total=len(server_responses)
+        )
+    except Exception as e:
+        logger.error(f"Failed to list MCP servers: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/mcp/servers", response_model=MCPServerResponse)
+async def create_mcp_server(request: MCPServerCreateRequest):
+    """Create and register a new MCP server."""
+    try:
+        registry = get_registry()
+        server_id = f"server_{uuid4().hex[:8]}"
+
+        server_info = await registry.register_server(
+            server_id=server_id,
+            name=request.name,
+            openapi_spec=request.openapi_spec,
+            config=request.config,
+            description=request.description,
+            auto_generate=True
+        )
+
+        return MCPServerResponse(
+            id=server_info.id,
+            name=server_info.name,
+            description=server_info.description,
+            status=server_info.status.value,
+            endpoint_count=server_info.endpoint_count,
+            tool_count=server_info.tool_count,
+            complexity_score=server_info.complexity_score,
+            created_at=server_info.created_at.isoformat(),
+            updated_at=server_info.updated_at.isoformat(),
+        )
+    except Exception as e:
+        logger.error(f"Failed to create MCP server: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/mcp/servers/{server_id}", response_model=MCPServerResponse)
+async def get_mcp_server(server_id: str):
+    """Get details of a specific MCP server."""
+    try:
+        registry = get_registry()
+        server_info = registry.get_server(server_id)
+
+        if not server_info:
+            raise HTTPException(status_code=404, detail="Server not found")
+
+        return MCPServerResponse(
+            id=server_info.id,
+            name=server_info.name,
+            description=server_info.description,
+            status=server_info.status.value,
+            endpoint_count=server_info.endpoint_count,
+            tool_count=server_info.tool_count,
+            complexity_score=server_info.complexity_score,
+            created_at=server_info.created_at.isoformat(),
+            updated_at=server_info.updated_at.isoformat(),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get MCP server {server_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/mcp/servers/{server_id}/start")
+async def start_mcp_server(server_id: str):
+    """Start a registered MCP server."""
+    try:
+        registry = get_registry()
+        success = await registry.start_server(server_id)
+
+        if not success:
+            raise HTTPException(status_code=400, detail="Failed to start server")
+
+        return {"message": f"Server {server_id} started successfully"}
+    except Exception as e:
+        logger.error(f"Failed to start MCP server {server_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/mcp/servers/{server_id}/stop")
+async def stop_mcp_server(server_id: str):
+    """Stop a running MCP server."""
+    try:
+        registry = get_registry()
+        success = await registry.stop_server(server_id)
+
+        if not success:
+            raise HTTPException(status_code=400, detail="Failed to stop server")
+
+        return {"message": f"Server {server_id} stopped successfully"}
+    except Exception as e:
+        logger.error(f"Failed to stop MCP server {server_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/mcp/servers/{server_id}")
+async def delete_mcp_server(server_id: str, cleanup_files: bool = True):
+    """Delete a registered MCP server."""
+    try:
+        registry = get_registry()
+        success = await registry.delete_server(server_id, cleanup_files)
+
+        if not success:
+            raise HTTPException(status_code=400, detail="Failed to delete server")
+
+        return {"message": f"Server {server_id} deleted successfully"}
+    except Exception as e:
+        logger.error(f"Failed to delete MCP server {server_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/mcp/servers/{server_id}/health")
+async def get_mcp_server_health(server_id: str):
+    """Get health status of a specific MCP server."""
+    try:
+        registry = get_registry()
+        health_status = await registry.health_check(server_id)
+        return health_status
+    except Exception as e:
+        logger.error(f"Failed to check health of MCP server {server_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/mcp/stats", response_model=MCPRegistryStatsResponse)
+async def get_mcp_registry_stats():
+    """Get MCP registry statistics."""
+    try:
+        registry = get_registry()
+        stats = registry.get_registry_stats()
+
+        return MCPRegistryStatsResponse(
+            total_servers=stats["total_servers"],
+            status_distribution=stats["status_distribution"],
+            running_servers=stats["running_servers"],
+            total_endpoints=stats["total_endpoints"],
+            total_tools=stats["total_tools"],
+            average_complexity=stats["average_complexity"],
+        )
+    except Exception as e:
+        logger.error(f"Failed to get MCP registry stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
