@@ -8,9 +8,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# Load environment variables from .env file
-load_dotenv()
-
 from main import (
     cancellation_agent,
     create_initial_context,
@@ -19,6 +16,11 @@ from main import (
     seat_booking_agent,
     triage_agent,
 )
+from mcp.registry import get_registry
+from mcp.server_generator import ServerGenerationConfig
+
+# Load environment variables from .env file
+load_dotenv()
 
 try:
     from agents import (
@@ -35,14 +37,6 @@ except ImportError:
     # Fallback for missing agents imports
     pass
 
-# MCP Integration imports
-from mcp.registry import (
-    MCPServerInfo,
-    ServerStatus,
-    get_registry,
-)
-from mcp.server_generator import ServerGenerationConfig
-
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -53,6 +47,7 @@ app = FastAPI()
 # Utility Functions for Testing
 # =========================
 
+
 def get_app_info():
     """Get basic application information."""
     return {
@@ -60,6 +55,7 @@ def get_app_info():
         "version": "1.0.0",
         "status": "running"
     }
+
 
 def validate_conversation_id(conversation_id: str) -> bool:
     """Validate conversation ID format."""
@@ -69,16 +65,19 @@ def validate_conversation_id(conversation_id: str) -> bool:
         return False
     return len(conversation_id) > 0
 
+
 def format_agent_name(name: str) -> str:
     """Format agent name for display."""
     if not name:
         return "Unknown Agent"
     return name.replace("_", " ").title()
 
+
 def get_timestamp():
     """Get current timestamp."""
     import time
     return time.time()
+
 
 # CORS configuration (adjust as needed for deployment)
 app.add_middleware(
@@ -155,7 +154,8 @@ class InMemoryConversationStore(ConversationStore):
         self._conversations[conversation_id] = state
 
 
-# TODO: when deploying this app in scale, switch to your own production-ready implementation
+# TODO: when deploying this app in scale, switch to your own
+# production-ready implementation
 conversation_store = InMemoryConversationStore()
 
 # =========================
@@ -299,7 +299,9 @@ async def chat_endpoint(req: ChatRequest):
         return ChatResponse(
             conversation_id=conversation_id,
             current_agent=current_agent.name,
-            messages=[MessageResponse(content=refusal, agent=current_agent.name)],
+            messages=[MessageResponse(
+                content=refusal, agent=current_agent.name
+            )],
             events=[],
             context=state["context"].model_dump(),
             agents=_build_agents_list(),
@@ -333,7 +335,8 @@ async def chat_endpoint(req: ChatRequest):
                     },
                 )
             )
-            # If there is an on_handoff callback defined for this handoff, show it as a tool call
+            # If there is an on_handoff callback defined for this handoff,
+            # show it as a tool call
             from_agent = item.source_agent
             to_agent = item.target_agent
             # Find the Handoff object on the source agent matching the target
@@ -384,7 +387,8 @@ async def chat_endpoint(req: ChatRequest):
                     metadata={"tool_args": tool_args},
                 )
             )
-            # If the tool is display_seat_map, send a special message so the UI can render the seat selector.
+            # If the tool is display_seat_map, send a special message so the UI
+            # can render the seat selector.
             if tool_name == "display_seat_map":
                 messages.append(
                     MessageResponse(
