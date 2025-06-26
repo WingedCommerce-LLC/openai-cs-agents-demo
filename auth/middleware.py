@@ -327,7 +327,9 @@ def require_permission(permission: str):
 
     Usage:
         @app.get("/admin")
-        async def admin_route(user: TokenData = Depends(require_permission("admin:read"))):
+        async def admin_route(
+            user: TokenData = Depends(require_permission("admin:read"))
+        ):
             return {"message": "Admin access granted"}
     """
 
