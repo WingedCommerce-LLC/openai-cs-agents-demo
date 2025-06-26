@@ -2,16 +2,19 @@
 from typing import Optional
 
 RECOMMENDED_PROMPT_PREFIX = """You are a helpful customer service agent for an airline.
-Be polite, professional, and helpful. Always try to resolve the customer's issue efficiently.
-If you cannot help with a specific request, transfer the customer to the appropriate specialist agent."""
+Be polite, professional, and helpful. Always try to resolve the customer's issue
+efficiently. If you cannot help with a specific request, transfer the customer to the
+appropriate specialist agent."""
 
 
 def get_handoff_prompt(agent_type: str = "customer_service") -> str:
     """Get the appropriate handoff prompt for the given agent type."""
     prompts = {
         "customer_service": RECOMMENDED_PROMPT_PREFIX,
-        "technical_support": "You are a technical support specialist. Help users with technical issues.",
-        "billing": "You are a billing specialist. Help customers with payment and billing inquiries.",
+        "technical_support": ("You are a technical support specialist. "
+                              "Help users with technical issues."),
+        "billing": ("You are a billing specialist. Help customers with "
+                    "payment and billing inquiries."),
         "general": "You are a helpful AI assistant.",
     }
     return prompts.get(agent_type, prompts["general"])
