@@ -1,0 +1,157 @@
+# Dependencies and package managers
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git
+.mypy_cache
+.pytest_cache
+.hypothesis
+
+# Lock files (keep package.json, requirements.txt, pyproject.toml)
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+uv.lock
+poetry.lock
+
+# Environment and secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Build outputs and generated files
+dist/
+build/
+*.egg-info/
+.next/
+out/
+.nuxt/
+.output/
+.vercel/
+
+# Coverage reports and test outputs
+htmlcov/
+htmlcov-security/
+coverage-security.xml
+.coverage
+.nyc_output/
+coverage/
+*.lcov
+
+# IDE and editor files
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.eslintcache
+.parcel-cache
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker and container files
+.dockerignore
+docker-compose.override.yml
+
+# Large data files and binaries
+*.zip
+*.tar.gz
+*.rar
+*.7z
+*.dmg
+*.iso
+*.img
+*.exe
+*.msi
+*.deb
+*.rpm
+
+# Screenshots and media (keep essential ones)
+screenshot.jpg
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico
+*.webp
+*.mp4
+*.avi
+*.mov
+*.wmv
+
+# Kubernetes secrets and generated manifests
+k8s/*secret*.yaml
+k8s/*configmap*.yaml
+
+# Helm generated files
+helm-chart/charts/
+helm-chart/Chart.lock
+
+# Cypress artifacts
+ui/cypress/videos/
+ui/cypress/screenshots/
+ui/cypress/downloads/
+
+# Demo data that might be large or generated
+demo/data/generated/
+demo/logs/
+demo/output/
+
+# MCP registry cache
+mcp_registry/cache/
+mcp_registry/*.db
+mcp_registry/*.sqlite
+
+# Monitoring and telemetry data
+monitoring/logs/
+monitoring/metrics/
+audit/logs/
+
+# Security scan results
+security/reports/
+security/scans/
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+*.tmp
