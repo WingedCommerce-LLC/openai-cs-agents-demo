@@ -10,13 +10,13 @@ implementations and should be replaced with a real agent framework.
 See AGENT_IMPLEMENTATION_PLAN.md for the roadmap to replace these stubs.
 """
 
-from typing import Any, Callable, List, Optional, TypeVar
+from typing import Any, Callable, List, Optional, TypeVar, Generic
 
 # Type variables
 T = TypeVar('T')
 
 
-class Agent:
+class Agent(Generic[T]):
     """
     STUB: Agent class placeholder.
 
@@ -75,23 +75,108 @@ class Runner:
     """
     STUB: Runner class placeholder.
 
-    ⚠️  This is a temporary stub that returns empty results.
+    ⚠️  This is a temporary stub that returns basic demo results.
     Replace with real agent execution engine.
     """
 
     @staticmethod
     async def run(agent: "Agent", input_data: Any, context: Any = None):
-        """STUB: Returns empty RunResult. No actual execution occurs."""
-        return RunResult()
+        """STUB: Returns basic demo RunResult for UI demonstration."""
+        # Create a basic demo response
+        result = RunResult()
+
+        # Add a simple message response for demo purposes
+        if isinstance(input_data, list) and len(input_data) > 0:
+            last_message = input_data[-1]
+            if isinstance(last_message, dict) and last_message.get("role") == "user":
+                user_message = last_message.get("content", "")
+
+                # Simple demo response based on user input
+                if "seat" in user_message.lower():
+                    demo_response = ("I can help you change your seat. "
+                                     "Your confirmation number is ABC123. "
+                                     "What seat would you like to change to?")
+                elif "flight" in user_message.lower():
+                    demo_response = ("Let me check your flight status. "
+                                     "Flight ABC123 is on time.")
+                elif "cancel" in user_message.lower():
+                    demo_response = ("I can help you cancel your flight. "
+                                     "Please confirm your booking details.")
+                else:
+                    demo_response = ("I'm here to help with your airline needs. "
+                                     "How can I assist you today?")
+
+                # Create a demo message item
+                demo_item = MessageOutputItem(agent, demo_response)
+                result._items = [demo_item]
+
+        return result
+
+
+class DemoMessageItem:
+    """
+    STUB: Demo message item for basic UI demonstration.
+    """
+    def __init__(self, agent, content):
+        self.agent = agent
+        self.content = content
+
+
+class MessageOutputItem:
+    """
+    STUB: Message output item placeholder.
+    """
+    def __init__(self, agent, content):
+        self.agent = agent
+        self.content = content
+
+
+class HandoffOutputItem:
+    """
+    STUB: Handoff output item placeholder.
+    """
+    def __init__(self, source_agent, target_agent):
+        self.source_agent = source_agent
+        self.target_agent = target_agent
+
+
+class ToolCallItem:
+    """
+    STUB: Tool call item placeholder.
+    """
+    def __init__(self, agent, raw_item):
+        self.agent = agent
+        self.raw_item = raw_item
+
+
+class ToolCallOutputItem:
+    """
+    STUB: Tool call output item placeholder.
+    """
+    def __init__(self, agent, output):
+        self.agent = agent
+        self.output = output
+
+
+class ItemHelpers:
+    """
+    STUB: Item helpers placeholder.
+    """
+    @staticmethod
+    def text_message_output(item):
+        return getattr(item, 'content', str(item))
 
 
 class RunResult:
     """
     STUB: Run result placeholder.
 
-    ⚠️  This is a temporary stub that returns empty data.
+    ⚠️  This is a temporary stub that returns basic demo data.
     Replace with real result handling system.
     """
+
+    def __init__(self):
+        self._items = []
 
     def final_output_as(self, output_type: type):
         """STUB: Returns empty instance of output_type."""
@@ -99,8 +184,8 @@ class RunResult:
 
     @property
     def new_items(self):
-        """STUB: Returns empty list."""
-        return []
+        """STUB: Returns demo items."""
+        return self._items
 
     def to_input_list(self):
         """STUB: Returns empty list."""

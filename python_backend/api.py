@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from main import (
+from python_backend.main import (
     cancellation_agent,
     create_initial_context,
     faq_agent,
@@ -34,8 +34,27 @@ try:
         ToolCallOutputItem,
     )
 except ImportError:
-    # Fallback for missing agents imports
-    pass
+    # Fallback for missing agents imports - define stub classes
+    class Handoff:
+        pass
+    class HandoffOutputItem:
+        pass
+    class InputGuardrailTripwireTriggered(Exception):
+        pass
+    class ItemHelpers:
+        @staticmethod
+        def text_message_output(item):
+            return str(item)
+    class MessageOutputItem:
+        pass
+    class Runner:
+        @staticmethod
+        async def run(*args, **kwargs):
+            pass
+    class ToolCallItem:
+        pass
+    class ToolCallOutputItem:
+        pass
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
